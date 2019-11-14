@@ -9,16 +9,14 @@ class StringReplacerPlugin {
 		StringReplacerPlugin["instance"] = this;
 		for (let [index, rule] of options.rules.entries()) {
 			// normalize rule props
-			//Object.assign(rule, Object.assign({include: true, exclude: false, replacements: []}, rule));
-			rule = Object.assign({ chunkInclude: true, chunkExclude: false, fileInclude: true, fileExclude: false, replacements: [] }, rule);
+			rule = Object.assign({
+				applyStage: "loader",
+				chunkInclude: true, chunkExclude: false,
+				outputFileInclude: true, outputFileExclude: false,
+				fileInclude: true, fileExclude: false,
+				replacements: []
+			}, rule);
 			options.rules[index] = rule;
-
-			// initialize internal metadata
-			/*rule.chunkIsMatch_perChunk = [];
-			rule.fileMatchCounts_perChunk = [];
-			for (let replacement of rule.replacements) {
-				replacement.fileMatchCounts_perChunk = [];
-			}*/
 		}
 		this.options = options;
 	}
@@ -32,7 +30,6 @@ class StringReplacerPlugin {
 			chunks: [],
 			chunkEntryPaths_perChunk: [],
 			//chunkMeta: [],
-			//optimizeModules_chunksReached: [],
 			optimizeModules_chunksReached: 0,
 		};
 		// just store on objects under options
@@ -45,14 +42,7 @@ class StringReplacerPlugin {
 		}
 	}
 	InitChunkMetaForChunkIndex(chunkIndex) {
-		/*this.currentRun.chunkMeta[chunkIndex] = {
-			ruleMeta: this.options.rules.map(rule=> ({
-				fileMatchCountInChunk: 0,
-				replacementMeta: rule.replacements.map(replacement=> ({
-					fileMatchCountInChunk: 0,
-				})),
-			})),
-		}*/
+		//this.currentRun.chunkMeta[chunkIndex] = {}
 		for (let rule of this.options.rules) {
 			rule.chunkIsMatch_perChunk[chunkIndex] = null;
 			rule.fileMatchCounts_perChunk[chunkIndex] = 0;
@@ -80,13 +70,11 @@ class StringReplacerPlugin {
 		}
 		let {rulesToApply_indexes, chunkIndex} = options;
 		const rulesToApply = rulesToApply_indexes.map(index=>this.options.rules[index]);
-		//console.log(`Applying rules...`);
 		for (let rule of rulesToApply) {
-			//this.ApplyRule(rule, modules, chunkIndex, chunk);
-			source = this.ApplyRuleToModule(rule, source, chunkIndex);
+			source = this.ApplyRuleAsSourceTransform(rule, source, chunkIndex);
 		}
 		return source;
-	};
+	}
 
 	apply(compiler) {
 		this.ResetCurrentRun(); // reset for first run
@@ -95,87 +83,121 @@ class StringReplacerPlugin {
 			const chunkIndex = this.currentRun.chunks.length - 1;
 			this.InitChunkMetaForChunkIndex(chunkIndex);
 
-			// stage 1: while in the optimizeDependencies stage for each chunk, store the chunk's entry-paths; the paths get lost for certain chunks, if waiting till the normalModuleLoader stage
-			//chunk.hooks.optimizeDependencies.tap(packageName+"_early", (modules)=> {
-			/*chunk.hooks.buildModule.tap(packageName+"_early", (modules)=> {
-				const chunkEntryPaths = chunk.entries.map(entry=>entry.resource);
-				this.currentRun.chunkEntryPaths_perChunk = chunkEntryPaths;
-				//console.log(`\n\n\n\n\n@index(${chunkIndex}) --- Chunk entry paths:`, chunkEntryPaths);
-				//console.log("\nTEST1=======", chunk.entrypoints, "\nTEST2=======", chunk["_preparedEntrypoints"], "\nTEST3=======", chunk.entries);
-				//console.log("\nTEST1=======", chunk.entrypoints, "\nTEST2=======", chunk["_preparedEntrypoints"]);
-				console.log("\nEntry points:", chunk["_preparedEntrypoints"].map(a=>a.name).join(", "));
-			});*/
+			// stage 1 (if apply-stage early/mid): insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
+			if (this.options.applyStage == "loader" || this.options.applyStage == "optimizeModules") {
+				chunk.hooks.normalModuleLoader.tap(packageName, (loaderContext, mod)=> {
+					if (loaderContext._compilation != chunk) throw new Error("LoaderContext and chunk out of sync.");
 
-			// stage 2: insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
-			// approach 1: use loaders to do the actual applying, earlier on (so has less conflict with other processes, as seen from trying to modify webpack/hot/dev-server.js)
-			//chunk.hooks.buildModule.tap(packageName, mod=> {
-			//chunk.hooks.succeedModule.tap(packageName, mod=> {
-			//chunk.hooks.normalModuleLoader.tap(packageName, this.OnNormalModuleLoader.bind(this));
-			chunk.hooks.normalModuleLoader.tap(packageName, (loaderContext, mod)=> {
-				/*const chunk = loaderContext._compilation;
-				const chunkIndex = this.currentRun.chunks.indexOf(chunk);
-				if (chunkIndex == -1) throw new Error("Failed to find loader's chunk on the chunk-list for this compilation run.");*/
+					let rulesToApply = this.options.rules.filter(rule=>this.PrepareToApplyRuleToModules(rule, [mod], chunk, chunkIndex) != null);
+					//console.log("Setting up loaderA:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
+					if (rulesToApply.length == 0) return;
+					const rulesToApply_indexes = rulesToApply.map(rule=>this.options.rules.indexOf(rule));
+					if (mod.loaders == null) return;
 
-				// add our special loader, for this file (this lets our transformation occur before eslint, babel, etc.)
-				//console.log("Setting up loader:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
-				//if (mod.loaders.filter(a=>a.loader.includes("html-webpack-plugin")).length) return; // temp fix
-				//console.log("Setting up loader:", ["getResolve", "rootContext", "_compilation"].map(key=>loaderContext[key]));
-				//console.log("Setting up loader:", (loaderContext._compilation.entries || []).map(a=>a.name).join(", "), "\n\nModules:", (loaderContext._compilation.modules || []).map(a=>a.name).join(", "));
-
-				if (loaderContext._compilation != chunk) throw new Error("LoaderContext and chunk out of sync.");
-
-				let rulesToApply = this.options.rules.filter(rule=>this.PrepareToApplyRuleToModules(rule, [mod], chunk, chunkIndex));
-				//console.log("Setting up loaderA:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
-				if (rulesToApply.length == 0) return;
-				const rulesToApply_indexes = rulesToApply.map(rule=>this.options.rules.indexOf(rule));
-
-				if (mod.loaders == null) return;
-
-				//console.log("Setting up loader:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
-				mod.loaders.push({
-				//mod.loaders.unshift({
-					loader: path.resolve(__dirname, 'loader.js'),
-					//ident: `ref--123456`
-					options: {rulesToApply_indexes, chunkIndex},
+					if (this.options.applyStage == "loader") {
+						//console.log("Setting up loader:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
+						mod.loaders.push({
+						//mod.loaders.unshift({
+							loader: path.resolve(__dirname, 'Loader.js'),
+							options: {rulesToApply_indexes, chunkIndex},
+						});
+					}
 				});
-			});
+			}
 
-			// stage 3: wait for the last chunk to be done optimizing-modules, then run the VerifyMatchCounts function
-			// approach 2: just modify the module source after loaders are done
-			//chunk.hooks.optimizeDependencies.tap(packageName, this.OnOptimizeModules.bind(this));
-			//chunk.hooks.optimizeModules.tap(packageName, this.OnOptimizeModules.bind(this));
-			//chunk.hooks.optimizeDependencies.tap(packageName, modules=> {
-			chunk.hooks.optimizeModules.tap(packageName, modules=> {
-				/*let chunk = this.currentRun.chunks.find(a=>a.modules == modules);
-				if (chunk == null) throw new Error("Failed to find chunk for module-list in OnOptimizeModules.");
-				this.currentRun.optimizeModules_chunksReached.push(chunk);
-				let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;
-				
-				for (let rule of this.options.rules) {
-					this.ApplyRule(rule, modules, chunkIndex, chunk);
-				}*/
+			// stage 2 (if apply-stage early/mid): wait for last chunk to be done optimizing-modules, apply rules (if apply-stage is optimizeModules), then run the VerifyMatchCounts function
+			if (this.options.applyStage == "loader" || this.options.applyStage == "optimizeModules") {
+				chunk.hooks.optimizeModules.tap(packageName, modules=> {
+					if (this.options.applyStage == "optimizeModules") {
+						/*let chunk = this.currentRun.chunks.find(a=>a.modules == modules);
+						if (chunk == null) throw new Error("Failed to find chunk for module-list in OnOptimizeModules.");
+						this.currentRun.optimizeModules_chunksReached.push(chunk);
+						let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*/
+						
+						for (let rule of this.options.rules) {
+							let {matchingModules} = this.PrepareToApplyRuleToModules(rule, modules, chunkIndex, chunk);
+							for (let mod of matchingModules) {
+								const sourceText = mod._source._value;
+								mod._source._value = this.ApplyRuleAsSourceTransform(rule, mod, sourceText, chunkIndex);
+							}
+						}
+					}
 
-				this.currentRun.optimizeModules_chunksReached++;
-				// if we just finished applying the rules for the last chunk, the compilation-run is complete
-				let isLastChunk = this.currentRun.optimizeModules_chunksReached == this.currentRun.chunks.length;
-				// if the compilation run is complete, verify the match counts
-				if (isLastChunk) {
+					this.currentRun.optimizeModules_chunksReached++;
+					// if we just finished applying the rules for the last chunk, the compilation-run is complete
+					let isLastChunk = this.currentRun.optimizeModules_chunksReached == this.currentRun.chunks.length;
+					// if the compilation run is complete, verify the match counts
+					if (isLastChunk) {
+						this.VerifyMatchCounts();
+						this.ResetCurrentRun(); // reset for next run
+					}
+				});
+			}
+			//chunk.hooks.afterOptimizeModules.tap(packageName, this.PostOptimizeModules.bind(this));
+
+			// stage 3 (if apply-stage late)
+			if (this.options.applyStage == "optimizeChunkAssets") {
+				const chunkIncludeFuncs = ToArray(chunkInclude).map(ChunkMatchToFunction);
+				const chunkExcludeFuncs = ToArray(chunkExclude).map(ChunkMatchToFunction);
+				const outputFileIncludeFuncs = ToArray(outputFileInclude).map(FileMatchToFunction);
+				const outputFileExcludeFuncs = ToArray(outputFileExclude).map(FileMatchToFunction);
+
+				compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
+					function GetAllIndexes(str, searchStr) {
+						let i = -1;
+						const indices = [];
+						while ((i = str.indexOf(searchStr, i + 1)) !== -1) {
+							indices.push(i);
+						}
+						return indices;
+					}
+	
+					for (let [chunkIndex, chunk] of chunks.entries()) {
+						const chunkInfo = {
+							index: chunkIndex,
+							definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
+						};
+						if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) continue; // if chunk not included by rule, doesn't match
+						if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) continue; // if chunk excluded by rule, doesn't match
+	
+						for (let [fileIndex, file] of chunk.files.entries()) {
+							if (!SomeFuncsMatch(outputFileIncludeFuncs, file)) continue; // if output-file not included by rule, doesn't match
+							if (SomeFuncsMatch(outputFileExcludeFuncs, file)) continue; // if output-file excluded by rule, doesn't match
+	
+							const originalSource = compilation.assets[file];
+							let newSource;
+							for (let entry of this.options.replacements) {
+								let {pattern, replacement} = entry;
+								const indices = GetAllIndexes(originalSource.source(), pattern);
+								if (!indices.length) continue;
+								if (!newSource) {
+									newSource = new ReplaceSource(originalSource);
+								}
+	
+								indices.forEach((startPos) => {
+									const endPos = startPos + pattern.length - 1;
+									//console.log("Replacing;", startPos, ";", endPos);
+									newSource.replace(startPos, endPos, replacement);
+								});
+							}
+	
+							if (newSource) {
+								/*let newFileName = "new_" + file;
+								compilation.assets[newFileName] = newSource;
+								console.log("Adding new source:", newFileName, ";Size:", newSource.size());
+								chunk.files[fileIndex] = newFileName;*/
+								compilation.assets[file] = newSource;
+							}
+						}
+					}
+	
 					this.VerifyMatchCounts();
 					this.ResetCurrentRun(); // reset for next run
-				}
-			});
-			//chunk.hooks.afterOptimizeModules.tap(packageName, this.PostOptimizeModules.bind(this));
+					callback();
+				});
+			}
 		});
-
-		// verify replacement counts
-		//compiler.hooks.afterCompile.tap(packageName, ()=> {
 	}
-	/*OnNormalModuleLoader(loaderContext, mod) {
-		// moved to the above	
-	};*/
-	/*OnOptimizeModules(modules) {
-		// moved to the above
-	}*/
 
 	PrepareToApplyRuleToModules(rule, modules, chunk, chunkIndex) {
 		const ruleIndex = this.options.rules.indexOf(rule);
@@ -184,26 +206,15 @@ class StringReplacerPlugin {
 		if (chunkIsMatch == null) {
 			const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
 			const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
-			/*const chunkEntryPaths_now = chunk.entries.map(entry=>entry.resource);
-			const chunkEntryPaths = this.currentRun.chunkEntryPaths_perChunk[chunkIndex] || chunkEntryPaths_now;
-			const chunkInfo = {index: chunkIndex, entryPaths: chunkEntryPaths};
-			console.log(`\n\n\n\n\n@index(${chunkIndex}) Chunk entry paths:`, chunkEntryPaths, "Chunk entry paths_now:", chunkEntryPaths_now);*/
 			const chunkInfo = {
 				index: chunkIndex,
 				definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name)),
 			};
-			/*let definedEntries = chunk["_preparedEntrypoints"];
-			if (definedEntries) {
-				chunkInfo.definedChunkNames = chunkInfo.definedChunkNames.concat(definedEntries.map(a=>a.name));
-			}*/
-			//console.log(`\n\n\n\n\nChunkInfo: `, JSON.stringify(chunkInfo));
 			
 			chunkIsMatch = SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);
-			//console.log("ChunkIndex:", chunkIndex, "IsMatch:", chunkIsMatch, "ChunkEntryPaths:", chunkInfo.entryPaths);
-			//console.log("\nTEST1=======", chunk.entrypoints.size, "\nTEST2=======", chunk["_preparedEntrypoints"], "\nTEST3=======", chunk.entries);
 			rule.chunkIsMatch_perChunk[chunkIndex] = chunkIsMatch;
 		}
-		if (!chunkIsMatch) return false;
+		if (!chunkIsMatch) return null;
 
 		const fileIncludeFuncs = ToArray(rule.fileInclude).map(FileMatchToFunction);
 		const fileExcludeFuncs = ToArray(rule.fileExclude).map(FileMatchToFunction);
@@ -226,15 +237,9 @@ class StringReplacerPlugin {
 		});
 		rule.fileMatchCounts_perChunk[chunkIndex] = matchingModules.length;
 
-		// this code would run to apply the rules, if we were still using the "direct" approach, and this method were still called ApplyRuleToModules (now we use loaders)
-		/*for (let mod of matchingModules) {
-			const sourceText = mod._source._value;
-			mod._source._value = this.ApplyRuleToModule(rule, mod, sourceText, chunkIndex);
-		}*/
-
-		return true;
+		return {matchingModules};
 	}
-	ApplyRuleToModule(rule, moduleSource, chunkIndex) {
+	ApplyRuleAsSourceTransform(rule, moduleSource, chunkIndex) {
 		//const ruleIndex = this.options.rules.indexOf(rule);
 
 		let result = moduleSource;

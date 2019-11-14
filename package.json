@@ -1,6 +1,6 @@
 {
   "name": "webpack-string-replacer",
-  "description": "Replace strings in webpack modules, with rich configuration and enforceable match-counts.",
+  "description": "Replace strings in webpack modules, with configurable apply-stage and match-count requirements.",
   "version": "0.0.1",
   "main": "Source/index.js",
   "license": "MIT",
