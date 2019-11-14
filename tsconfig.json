@@ -4,6 +4,7 @@
 		"rootDir": "Source",
 		"sourceMap": true,
 		"watch": true,
+		"module": "commonjs",
 		"moduleResolution": "node",
 		"target": "es2015",
 		//"allowJs": true,

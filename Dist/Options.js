@@ -1,4 +1,6 @@
-export class Options {
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
+class Options {
     constructor(initialProps) {
         this.logFileMatches = false;
         this.logFileMatchContents = false;
@@ -7,8 +9,11 @@ export class Options {
         Object.assign(this, initialProps);
     }
 }
-export class Rule {
+exports.Options = Options;
+class Rule {
 }
-export class Replacement {
+exports.Rule = Rule;
+class Replacement {
 }
+exports.Replacement = Replacement;
 //# sourceMappingURL=Options.js.map

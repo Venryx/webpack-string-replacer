@@ -46,8 +46,10 @@ class StringReplacerPlugin {
 		// just store on objects under options
 		for (let rule of this.options.rules) {
 			rule.chunkIsMatch_perChunk = [];
+			rule.outputFileMatchCounts_perChunk = [];
 			rule.fileMatchCounts_perChunk = [];
 			for (let replacement of rule.replacements) {
+				replacement.outputFileMatchCounts_perChunk = [];
 				replacement.fileMatchCounts_perChunk = [];
 			}
 		}
@@ -56,8 +58,10 @@ class StringReplacerPlugin {
 		//this.currentRun.chunkMeta[chunkIndex] = {}
 		for (let rule of this.options.rules) {
 			rule.chunkIsMatch_perChunk[chunkIndex] = null;
+			rule.outputFileMatchCounts_perChunk[chunkIndex] = 0;
 			rule.fileMatchCounts_perChunk[chunkIndex] = 0;
 			for (let replacement of rule.replacements) {
+				replacement.outputFileMatchCounts_perChunk[chunkIndex] = 0;
 				replacement.fileMatchCounts_perChunk[chunkIndex] = 0;
 			}
 		}
@@ -139,18 +143,8 @@ class StringReplacerPlugin {
 							}
 						}
 					}
-
-					this.currentRun.optimizeModules_chunksReached++;
-					// if we just finished applying the rules for the last chunk, the compilation-run is complete
-					let isLastChunk = this.currentRun.optimizeModules_chunksReached == this.currentRun.chunks.length;
-					// if the compilation run is complete, verify the match counts
-					if (isLastChunk) {
-						this.VerifyMatchCounts();
-						this.ResetCurrentRun(); // reset for next run
-					}
 				});
 			}
-			//chunk.hooks.afterOptimizeModules.tap(packageName, this.PostOptimizeModules.bind(this));
 
 			// stage 3 (if apply-stage late)
 			if (this.Stages.includes("optimizeChunkAssets")) {
@@ -174,29 +168,34 @@ class StringReplacerPlugin {
 								index: chunkIndex,
 								definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
 							};
+							rule.chunkIsMatch_perChunk[chunkIndex] = false;
 							if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) continue; // if chunk not included by rule, doesn't match
 							if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) continue; // if chunk excluded by rule, doesn't match
+							rule.chunkIsMatch_perChunk[chunkIndex] = true;
 		
+							//const matchingFiles = chunk.files.filter(file=> {})
 							for (let [fileIndex, file] of chunk.files.entries()) {
 								if (!SomeFuncsMatch(outputFileIncludeFuncs, file)) continue; // if output-file not included by rule, doesn't match
 								if (SomeFuncsMatch(outputFileExcludeFuncs, file)) continue; // if output-file excluded by rule, doesn't match
+								rule.outputFileMatchCounts_perChunk[chunkIndex]++;
 		
 								const originalSource = compilation.assets[file];
 								let newSource;
 								for (let entry of rule.replacements) {
 									if (!IsString(entry.pattern)) throw new Error("Only string patterns are allowed for optimizeChunkAssets stage currently. (will fix later)");
 									let patternStr = entry.pattern as string;
-									const indices = GetAllIndexes(originalSource.source(), patternStr);
-									if (!indices.length) continue;
+									const matchIndexes = GetAllIndexes(originalSource.source(), patternStr);
+									if (!matchIndexes.length) continue;
 									if (!newSource) {
 										newSource = new ReplaceSource(originalSource);
 									}
 		
-									indices.forEach((startPos) => {
+									matchIndexes.forEach((startPos) => {
 										const endPos = startPos + patternStr.length - 1;
 										//console.log("Replacing;", startPos, ";", endPos);
 										newSource.replace(startPos, endPos, entry.replacement);
 									});
+									entry.outputFileMatchCounts_perChunk[chunkIndex] += matchIndexes.length;
 								}
 		
 								if (newSource) {
@@ -210,9 +209,21 @@ class StringReplacerPlugin {
 						}
 					}
 	
-					this.VerifyMatchCounts();
-					this.ResetCurrentRun(); // reset for next run
+					/*this.VerifyMatchCounts();
+					this.ResetCurrentRun(); // reset for next run*/
 					callback();
+				});
+				
+				// stage 4: detect when compilation is truly finished, then verify match counts, then reset for next run
+				compilation.hooks.afterOptimizeModules.tap(packageName, modules=> {
+					this.currentRun.optimizeModules_chunksReached++;
+					// if we just finished applying the rules for the last chunk, the compilation-run is complete
+					let isLastChunk = this.currentRun.optimizeModules_chunksReached == this.currentRun.chunks.length;
+					// if the compilation run is complete, verify the match counts
+					if (isLastChunk) {
+						this.VerifyMatchCounts();
+						this.ResetCurrentRun(); // reset for next run
+					}
 				});
 			}
 		});
@@ -299,7 +310,7 @@ class StringReplacerPlugin {
 	}
 
 	VerifyMatchCounts() {
-		console.log("Verifying match counts...");
+		console.log(`Verifying match counts... @chunks(${this.currentRun.chunks.length})`);
 		for (let [ruleIndex, rule] of this.options.rules.entries()) {
 			let chunksMatching = rule.chunkIsMatch_perChunk.filter(isMatch=>isMatch);
 			if (!IsMatchCountCorrect(chunksMatching.length, rule.chunkMatchCount)) {

@@ -18,6 +18,7 @@ export declare class Rule {
     fileMatchCount: MatchCountTarget;
     replacements: Replacement[];
     chunkIsMatch_perChunk: boolean[];
+    outputFileMatchCounts_perChunk: number[];
     fileMatchCounts_perChunk: number[];
 }
 export declare type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";
@@ -25,6 +26,7 @@ export declare class Replacement {
     pattern: string | RegExp;
     patternMatchCount: MatchCountTarget;
     replacement: string | ((substring: string, ...args: (string | number)[]) => string);
+    outputFileMatchCounts_perChunk: number[];
     fileMatchCounts_perChunk: number[];
 }
 export declare type ChunkMatch = any;

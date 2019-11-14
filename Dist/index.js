@@ -1,14 +1,17 @@
+"use strict";
+Object.defineProperty(exports, "__esModule", { value: true });
 // @ts-check_disabled
-import path from "path";
-import { IsString, IsFunction, ToArray, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct } from "./Utils";
-import { ReplaceSource } from "webpack-sources";
-export class CompilationRun {
+const path_1 = require("path");
+const Utils_1 = require("./Utils");
+const webpack_sources_1 = require("webpack-sources");
+class CompilationRun {
     constructor() {
         this.chunks = [];
         this.chunkEntryPaths_perChunk = [];
         this.optimizeModules_chunksReached = 0;
     }
 }
+exports.CompilationRun = CompilationRun;
 const packageName = "webpack-plugin-string-replace";
 class StringReplacerPlugin {
     //static instance;
@@ -41,8 +44,10 @@ class StringReplacerPlugin {
         // just store on objects under options
         for (let rule of this.options.rules) {
             rule.chunkIsMatch_perChunk = [];
+            rule.outputFileMatchCounts_perChunk = [];
             rule.fileMatchCounts_perChunk = [];
             for (let replacement of rule.replacements) {
+                replacement.outputFileMatchCounts_perChunk = [];
                 replacement.fileMatchCounts_perChunk = [];
             }
         }
@@ -51,8 +56,10 @@ class StringReplacerPlugin {
         //this.currentRun.chunkMeta[chunkIndex] = {}
         for (let rule of this.options.rules) {
             rule.chunkIsMatch_perChunk[chunkIndex] = null;
+            rule.outputFileMatchCounts_perChunk[chunkIndex] = 0;
             rule.fileMatchCounts_perChunk[chunkIndex] = 0;
             for (let replacement of rule.replacements) {
+                replacement.outputFileMatchCounts_perChunk[chunkIndex] = 0;
                 replacement.fileMatchCounts_perChunk[chunkIndex] = 0;
             }
         }
@@ -83,7 +90,7 @@ class StringReplacerPlugin {
     }
     get Stages() {
         if (this.stages_cache == null) {
-            this.stages_cache = Distinct(this.options.rules.map(a => a.applyStage));
+            this.stages_cache = Utils_1.Distinct(this.options.rules.map(a => a.applyStage));
         }
         return this.stages_cache;
     }
@@ -108,7 +115,7 @@ class StringReplacerPlugin {
                     //console.log("Setting up loader:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
                     mod.loaders.push({
                         //mod.loaders.unshift({
-                        loader: path.resolve(__dirname, 'Loader.js'),
+                        loader: path_1.default.resolve(__dirname, 'Loader.js'),
                         options: { rulesToApply_indexes, chunkIndex },
                     });
                 });
@@ -129,25 +136,16 @@ class StringReplacerPlugin {
                             }
                         }
                     }
-                    this.currentRun.optimizeModules_chunksReached++;
-                    // if we just finished applying the rules for the last chunk, the compilation-run is complete
-                    let isLastChunk = this.currentRun.optimizeModules_chunksReached == this.currentRun.chunks.length;
-                    // if the compilation run is complete, verify the match counts
-                    if (isLastChunk) {
-                        this.VerifyMatchCounts();
-                        this.ResetCurrentRun(); // reset for next run
-                    }
                 });
             }
-            //chunk.hooks.afterOptimizeModules.tap(packageName, this.PostOptimizeModules.bind(this));
             // stage 3 (if apply-stage late)
             if (this.Stages.includes("optimizeChunkAssets")) {
                 compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
                     for (let rule of opt.rules) {
-                        const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
-                        const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
-                        const outputFileIncludeFuncs = ToArray(rule.outputFileInclude).map(FileMatchToFunction);
-                        const outputFileExcludeFuncs = ToArray(rule.outputFileExclude).map(FileMatchToFunction);
+                        const chunkIncludeFuncs = Utils_1.ToArray(rule.chunkInclude).map(Utils_1.ChunkMatchToFunction);
+                        const chunkExcludeFuncs = Utils_1.ToArray(rule.chunkExclude).map(Utils_1.ChunkMatchToFunction);
+                        const outputFileIncludeFuncs = Utils_1.ToArray(rule.outputFileInclude).map(Utils_1.FileMatchToFunction);
+                        const outputFileExcludeFuncs = Utils_1.ToArray(rule.outputFileExclude).map(Utils_1.FileMatchToFunction);
                         function GetAllIndexes(str, searchStr) {
                             let i = -1;
                             const indices = [];
@@ -161,32 +159,37 @@ class StringReplacerPlugin {
                                 index: chunkIndex,
                                 definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a => a.name))
                             };
-                            if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo))
+                            rule.chunkIsMatch_perChunk[chunkIndex] = false;
+                            if (!Utils_1.SomeFuncsMatch(chunkIncludeFuncs, chunkInfo))
                                 continue; // if chunk not included by rule, doesn't match
-                            if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo))
+                            if (Utils_1.SomeFuncsMatch(chunkExcludeFuncs, chunkInfo))
                                 continue; // if chunk excluded by rule, doesn't match
+                            rule.chunkIsMatch_perChunk[chunkIndex] = true;
+                            //const matchingFiles = chunk.files.filter(file=> {})
                             for (let [fileIndex, file] of chunk.files.entries()) {
-                                if (!SomeFuncsMatch(outputFileIncludeFuncs, file))
+                                if (!Utils_1.SomeFuncsMatch(outputFileIncludeFuncs, file))
                                     continue; // if output-file not included by rule, doesn't match
-                                if (SomeFuncsMatch(outputFileExcludeFuncs, file))
+                                if (Utils_1.SomeFuncsMatch(outputFileExcludeFuncs, file))
                                     continue; // if output-file excluded by rule, doesn't match
+                                rule.outputFileMatchCounts_perChunk[chunkIndex]++;
                                 const originalSource = compilation.assets[file];
                                 let newSource;
                                 for (let entry of rule.replacements) {
-                                    if (!IsString(entry.pattern))
+                                    if (!Utils_1.IsString(entry.pattern))
                                         throw new Error("Only string patterns are allowed for optimizeChunkAssets stage currently. (will fix later)");
                                     let patternStr = entry.pattern;
-                                    const indices = GetAllIndexes(originalSource.source(), patternStr);
-                                    if (!indices.length)
+                                    const matchIndexes = GetAllIndexes(originalSource.source(), patternStr);
+                                    if (!matchIndexes.length)
                                         continue;
                                     if (!newSource) {
-                                        newSource = new ReplaceSource(originalSource);
+                                        newSource = new webpack_sources_1.ReplaceSource(originalSource);
                                     }
-                                    indices.forEach((startPos) => {
+                                    matchIndexes.forEach((startPos) => {
                                         const endPos = startPos + patternStr.length - 1;
                                         //console.log("Replacing;", startPos, ";", endPos);
                                         newSource.replace(startPos, endPos, entry.replacement);
                                     });
+                                    entry.outputFileMatchCounts_perChunk[chunkIndex] += matchIndexes.length;
                                 }
                                 if (newSource) {
                                     /*let newFileName = "new_" + file;
@@ -198,9 +201,20 @@ class StringReplacerPlugin {
                             }
                         }
                     }
-                    this.VerifyMatchCounts();
-                    this.ResetCurrentRun(); // reset for next run
+                    /*this.VerifyMatchCounts();
+                    this.ResetCurrentRun(); // reset for next run*/
                     callback();
+                });
+                // stage 4: detect when compilation is truly finished, then verify match counts, then reset for next run
+                compilation.hooks.afterOptimizeModules.tap(packageName, modules => {
+                    this.currentRun.optimizeModules_chunksReached++;
+                    // if we just finished applying the rules for the last chunk, the compilation-run is complete
+                    let isLastChunk = this.currentRun.optimizeModules_chunksReached == this.currentRun.chunks.length;
+                    // if the compilation run is complete, verify the match counts
+                    if (isLastChunk) {
+                        this.VerifyMatchCounts();
+                        this.ResetCurrentRun(); // reset for next run
+                    }
                 });
             }
         });
@@ -209,19 +223,19 @@ class StringReplacerPlugin {
         const ruleIndex = this.options.rules.indexOf(rule);
         let chunkIsMatch = rule.chunkIsMatch_perChunk[chunkIndex];
         if (chunkIsMatch == null) {
-            const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
-            const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
+            const chunkIncludeFuncs = Utils_1.ToArray(rule.chunkInclude).map(Utils_1.ChunkMatchToFunction);
+            const chunkExcludeFuncs = Utils_1.ToArray(rule.chunkExclude).map(Utils_1.ChunkMatchToFunction);
             const chunkInfo = {
                 index: chunkIndex,
                 definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a => a.name)),
             };
-            chunkIsMatch = SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);
+            chunkIsMatch = Utils_1.SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !Utils_1.SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);
             rule.chunkIsMatch_perChunk[chunkIndex] = chunkIsMatch;
         }
         if (!chunkIsMatch)
             return null;
-        const fileIncludeFuncs = ToArray(rule.fileInclude).map(FileMatchToFunction);
-        const fileExcludeFuncs = ToArray(rule.fileExclude).map(FileMatchToFunction);
+        const fileIncludeFuncs = Utils_1.ToArray(rule.fileInclude).map(Utils_1.FileMatchToFunction);
+        const fileExcludeFuncs = Utils_1.ToArray(rule.fileExclude).map(Utils_1.FileMatchToFunction);
         const matchingModules = modules.filter(mod => {
             let path = mod.resource; // path is absolute
             if (path == null)
@@ -229,9 +243,9 @@ class StringReplacerPlugin {
             path = path.replace(/\\/g, "/"); // normalize path to have "/" separators
             /*if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) return false; // if chunk not included by rule, doesn't match
             if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) return false; // if chunk excluded by rule, doesn't match*/
-            if (!SomeFuncsMatch(fileIncludeFuncs, path))
+            if (!Utils_1.SomeFuncsMatch(fileIncludeFuncs, path))
                 return false; // if module not included by rule, doesn't match
-            if (SomeFuncsMatch(fileExcludeFuncs, path))
+            if (Utils_1.SomeFuncsMatch(fileExcludeFuncs, path))
                 return false; // if module excluded by rule, doesn't match
             if (this.options.logFileMatches || this.options.logFileMatchContents) {
                 console.log(`Found file match. @rule(${ruleIndex}) @path:` + path);
@@ -250,7 +264,7 @@ class StringReplacerPlugin {
         //console.log("Length:" + moduleSource.length);
         for (let replacement of rule.replacements) {
             let patternMatchCount = 0;
-            let pattern_asRegex = ToRegex(replacement.pattern);
+            let pattern_asRegex = Utils_1.ToRegex(replacement.pattern);
             if (!pattern_asRegex.global)
                 throw new Error("Regex must have the 'g' flag added. (otherwise it will only have one match!)");
             if (this.options.logAroundPatternMatches != null) {
@@ -268,9 +282,9 @@ class StringReplacerPlugin {
             }
             result = result.replace(pattern_asRegex, (substring, ...args) => {
                 patternMatchCount++;
-                if (IsString(replacement.replacement))
+                if (Utils_1.IsString(replacement.replacement))
                     return replacement.replacement;
-                if (IsFunction(replacement.replacement))
+                if (Utils_1.IsFunction(replacement.replacement))
                     return replacement.replacement(substring, ...args);
                 throw new Error("Rule.replacement must be a string or function.");
             });
@@ -281,10 +295,10 @@ class StringReplacerPlugin {
         return result;
     }
     VerifyMatchCounts() {
-        console.log("Verifying match counts...");
+        console.log(`Verifying match counts... @chunks(${this.currentRun.chunks.length})`);
         for (let [ruleIndex, rule] of this.options.rules.entries()) {
             let chunksMatching = rule.chunkIsMatch_perChunk.filter(isMatch => isMatch);
-            if (!IsMatchCountCorrect(chunksMatching.length, rule.chunkMatchCount)) {
+            if (!Utils_1.IsMatchCountCorrect(chunksMatching.length, rule.chunkMatchCount)) {
                 throw new Error(`
 					A rule did not have as many chunk-matches as it should have.
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
@@ -293,7 +307,7 @@ class StringReplacerPlugin {
 					Ensure you have the correct versions for any npm modules involved.
 				`);
             }
-            let chunksWithCorrectRuleMatchCount = rule.fileMatchCounts_perChunk.filter(count => IsMatchCountCorrect(count, rule.fileMatchCount));
+            let chunksWithCorrectRuleMatchCount = rule.fileMatchCounts_perChunk.filter(count => Utils_1.IsMatchCountCorrect(count, rule.fileMatchCount));
             if (chunksWithCorrectRuleMatchCount.length == 0) {
                 throw new Error(`
 					A rule did not have as many file-matches as it should have (in any chunk).
@@ -304,7 +318,7 @@ class StringReplacerPlugin {
 				`);
             }
             for (let [index, replacement] of rule.replacements.entries()) {
-                let chunksWithCorrectReplacementMatchCount = replacement.fileMatchCounts_perChunk.filter(count => IsMatchCountCorrect(count, replacement.patternMatchCount));
+                let chunksWithCorrectReplacementMatchCount = replacement.fileMatchCounts_perChunk.filter(count => Utils_1.IsMatchCountCorrect(count, replacement.patternMatchCount));
                 if (chunksWithCorrectReplacementMatchCount.length == 0) {
                     throw new Error(`
 						A string-replacement pattern did not have as many matches as it should have (in any chunk).
