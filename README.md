@@ -46,7 +46,7 @@ webpackConfig.plugins.push(new StringReplacerPlugin({
 				replacement: '//location.reload();',
 			},
 			{
-				pattern: 'location.href = (.+);',
+				pattern: /location\.href = (.+);/g,
 				replacement: (match, sub1, offset, sourceStr)=> {
 					return (
 						`location.href_disabled = ${sub1};
