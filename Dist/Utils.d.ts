@@ -1,0 +1,15 @@
+export declare const IsBool: (any: any) => boolean;
+export declare const IsNumber: (any: any) => boolean;
+export declare const IsString: (any: any) => boolean;
+export declare const IsRegex: (any: any) => boolean;
+export declare const IsArray: (any: any) => boolean;
+export declare const IsObject: (any: any) => boolean;
+export declare const IsFunction: (any: any) => boolean;
+export declare const ToArray: (any: any) => any;
+export declare function EscapeForRegex(literalString: any): any;
+export declare function ToRegex(str: any): any;
+export declare function Distinct(items: any[]): any[];
+export declare function ChunkMatchToFunction(matchObj: any): (chunkInfo: any) => any;
+export declare function FileMatchToFunction(val: any): (path: any) => any;
+export declare function SomeFuncsMatch(matchFuncs: any, val: any): boolean;
+export declare function IsMatchCountCorrect(actualMatchCount: any, targetMatchCountOrRange: any): boolean;

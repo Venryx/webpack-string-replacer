@@ -2,7 +2,8 @@
   "name": "webpack-string-replacer",
   "description": "Replace strings in webpack modules, with configurable apply-stage and match-count requirements.",
   "version": "0.0.1",
-  "main": "Source/index.js",
+  "main": "Dist/index.js",
+  "typings": "Dist/index.d.ts",
   "license": "MIT",
   "author": {
     "name": "Stephen Wicklund",
@@ -21,10 +22,18 @@
     "replace",
     "replacer"
   ],
+  "scripts": {
+    "dev": "tsc --watch",
+    "dist": "tsc"
+  },
   "engines": {
     "node": ">=4"
   },
   "devDependencies": {
+    "@types/node": "^12.12.7",
     "webpack": "^4.41.2"
+  },
+  "dependencies": {
+    "webpack-sources": "^1.4.3"
   }
 }

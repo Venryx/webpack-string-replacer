@@ -1,0 +1,30 @@
+{
+	"compilerOptions": {
+		"lib": ["es2017"],
+		"rootDir": "Source",
+		"sourceMap": true,
+		"watch": true,
+		"moduleResolution": "node",
+		"target": "es2015",
+		//"allowJs": true,
+		"jsx": "react",
+		"noImplicitAny": false,
+		"experimentalDecorators": true,
+		"allowSyntheticDefaultImports": true,
+		"alwaysStrict": true, // alternative: "@babel/plugin-transform-strict-mode"; went with this since doesn't require another npm package
+		"outDir": "Dist",
+		"declaration": true,
+		"declarationDir": "Dist"
+	},
+	"files": ["Source/index.ts"],
+	"include": [
+		"Typings/**/*.d.ts",
+		"Source/**/*.ts",
+		"Source/**/*.tsx"
+	],
+	"exclude": [
+		"Dist",
+		"node_modules"
+	],
+	"compileOnSave": true
+}

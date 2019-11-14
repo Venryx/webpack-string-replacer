@@ -61,6 +61,8 @@ webpackConfig.plugins.push(new StringReplacerPlugin({
 
 ### Options
 
+If you prefer viewing the raw TypeScript typings, you can open the "Source/Options.ts" file, or the "Dist/*.d.ts" files.
+
 #### `logFileMatches` - bool
 
 > If true, files matches by rules will have their paths logged for inspection.
@@ -77,7 +79,7 @@ webpackConfig.plugins.push(new StringReplacerPlugin({
 
 > Array of rules. (see below)
 
-#### `rules.X.applyStage` - "optimizeChunkAssets" | "loader"
+#### `rules.X.applyStage` - "loader" | "optimizeModules" | "optimizeChunkAssets"
 
 > **loader** (early)  
 >> Time: Applies before other loaders or plugins have modified the source files.  

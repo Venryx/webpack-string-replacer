@@ -1,39 +1,29 @@
-function Export(obj) {
-	Object.assign(module.exports, obj);
-}
-module.exports = {};
+export const IsBool = any => typeof any === "boolean";
+export const IsNumber = any => typeof any === "number";
+export const IsString = any => typeof any === "string";
+export const IsRegex = any => any instanceof RegExp;
+//export const IsArray = any => typeof any === "array";
+export const IsArray = any => Array.isArray(any);
+export const IsObject = any => typeof any === "object";
+export const IsFunction = any => typeof any === "function";
 
-const IsBool = any => typeof any === "boolean";
-Export({IsBool});
-const IsNumber = any => typeof any === "number";
-Export({IsNumber});
-const IsString = any => typeof any === "string";
-Export({IsString});
-const IsRegex = any => any instanceof RegExp;
-Export({IsRegex});
-//const IsArray = any => typeof any === "array";
-const IsArray = any => Array.isArray(any);
-Export({IsArray});
-const IsObject = any => typeof any === "object";
-Export({IsObject});
-const IsFunction = any => typeof any === "function";
-Export({IsFunction});
-
-const ToArray = any => IsArray(any) ? any : (any != null ? [any] : []);
-Export({ToArray});
-function EscapeForRegex(literalString) {
+export const ToArray = any => IsArray(any) ? any : (any != null ? [any] : []);
+export function EscapeForRegex(literalString) {
 	//return literalString.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
 	// escape all control characters (probably more cautious than needed, but that's ok)
 	return literalString.replace(/[-[\]{}()*+!<=:?.\/\\^$|#\s,]/g, '\\$&');
 }
-Export({EscapeForRegex});
-function ToRegex(str) {
+export function ToRegex(str) {
 	if (IsRegex(str)) return str;
 	if (IsString(str)) return new RegExp(EscapeForRegex(str), "g");
 	throw new Error("Invalid pattern.");
 }
-Export({ToRegex});
-function ChunkMatchToFunction(matchObj) {
+
+export function Distinct(items: any[]) {
+	return Array.from(new Set(items));
+}
+
+export function ChunkMatchToFunction(matchObj) {
 	if (IsBool(matchObj)) return chunkInfo => matchObj;
 	if (matchObj.name) {
 		return chunkInfo=>chunkInfo.definedChunkNames.filter(name=>name == matchObj.name).length > 0;
@@ -57,17 +47,15 @@ function ChunkMatchToFunction(matchObj) {
 	}*/
 	throw new Error("Invalid chunk-match.");
 }
-Export({ChunkMatchToFunction});
-function FileMatchToFunction(val) {
+export function FileMatchToFunction(val) {
 	if (IsBool(val)) return path => val;
 	if (IsRegex(val)) return path => val.test(path);
 	if (IsString(val)) return path => path.includes(val);
 	if (IsFunction(val)) return path => val(path);
 	throw new Error("Invalid file-match.");
 }
-Export({FileMatchToFunction});
 
-function SomeFuncsMatch(matchFuncs, val) {
+export function SomeFuncsMatch(matchFuncs, val) {
 	for (let i = 0; i < matchFuncs.length; i++) {
 		if (matchFuncs[i](val) === true) {
 			return true; // match *any* condition
@@ -75,9 +63,8 @@ function SomeFuncsMatch(matchFuncs, val) {
 	}
 	return false;
 }
-Export({SomeFuncsMatch});
 
-function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
+export function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
 	if (targetMatchCountOrRange == null) return true;
 	if (IsNumber(targetMatchCountOrRange)) {
 		return actualMatchCount == targetMatchCountOrRange;
@@ -89,4 +76,3 @@ function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
 	}
 	throw new Error("Match-count target must either be a number (for exact target), or a {min, max} object (for range).");
 }
-Export({IsMatchCountCorrect});
