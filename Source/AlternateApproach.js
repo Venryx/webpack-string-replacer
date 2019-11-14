@@ -1,4 +1,5 @@
 const {ReplaceSource} = require('webpack-sources');
+const {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect} = require("./Utils");
 
 /*
 Usage:
@@ -17,6 +18,10 @@ class StringReplacerPlugin {
 		this.options = Object.assign({chunkInclude: true, chunkExclude: false}, options);
 	}
 	apply(compiler) {
+		let {chunkInclude, chunkExclude} = this.options;
+		const chunkIncludeFuncs = ToArray(chunkInclude).map(ChunkMatchToFunction);
+		const chunkExcludeFuncs = ToArray(chunkExclude).map(ChunkMatchToFunction);
+
 		compiler.plugin('compilation', (compilation) => {
 			compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
 				function GetAllIndexes(str, searchStr) {
@@ -28,12 +33,13 @@ class StringReplacerPlugin {
 					return indices;
 				}
 
-				for (let chunk of chunks) {
-					let {chunkInclude, chunkExclude} = this.options;
-					let definedEntries = chunk.entries;
-					const chunkNames = (definedEntries || []).map(a=>a.name);
-					if (chunkInclude == true || chunkNames.find(a=>a == chunkInclude) == null) return;
-					if (chunkExclude == true || chunkNames.find(a=>a == chunkExclude) != null) return;
+				for (let [chunkIndex, chunk] of chunks.entries()) {
+					const chunkInfo = {
+						index: chunkIndex,
+						definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
+					};
+					if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) return false; // if chunk not included by rule, doesn't match
+					if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) return false; // if chunk excluded by rule, doesn't match
 
 					for (let file of chunk.files) {
 						const originalSource = compilation.assets[file];
@@ -41,7 +47,7 @@ class StringReplacerPlugin {
 						for (let entry of this.options.replacements) {
 							let {pattern, replacement} = entry;
 							const indices = GetAllIndexes(originalSource.source(), pattern);
-							if (!indices.length) return;
+							if (!indices.length) continue;
 							if (!source) {
 								source = new ReplaceSource(originalSource);
 							}
@@ -55,10 +61,10 @@ class StringReplacerPlugin {
 						if (source) {
 							compilation.assets[file] = source;
 						}
-
-						callback();
 					}
 				}
+
+				callback();
 			});
 		});
 	}

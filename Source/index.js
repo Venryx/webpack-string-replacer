@@ -1,79 +1,6 @@
-// @ts-check
+// @ts-check_disabled
 const path = require("path");
-
-const IsBool = any => typeof any === "boolean";
-const IsNumber = any => typeof any === "number";
-const IsString = any => typeof any === "string";
-const IsRegex = any => any instanceof RegExp;
-//const IsArray = any => typeof any === "array";
-const IsArray = any => Array.isArray(any);
-const IsObject = any => typeof any === "object";
-const IsFunction = any => typeof any === "function";
-
-const ToArray = any => IsArray(any) ? any : (any != null ? [any] : []);
-function EscapeForRegex(literalString) {
-	//return literalString.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
-	// escape all control characters (probably more cautious than needed, but that's ok)
-	return literalString.replace(/[-[\]{}()*+!<=:?.\/\\^$|#\s,]/g, '\\$&');
-}
-function ToRegex(str) {
-	if (IsRegex(str)) return str;
-	if (IsString(str)) return new RegExp(EscapeForRegex(str), "g");
-	throw new Error("Invalid pattern.");
-}
-function ChunkMatchToFunction(matchObj) {
-	if (IsBool(matchObj)) return chunkInfo => matchObj;
-	if (matchObj.name) {
-		return chunkInfo=>chunkInfo.definedChunkNames.filter(name=>name == matchObj.name).length > 0;
-	}
-	// removed for now, as "name" works fine, and index might not match the end-developer's assumed meaning
-	/*if (matchObj.index) {
-		return chunkInfo=>chunkInfo.index == matchObj.index;
-	}*/
-	// removed for now, as "name" works fine, and entry-path retrieval is tricky
-	/*if (matchObj.entryPath) {
-		/* if (IsRegex(val)) return chunkInfo => val.test(chunkInfo.entryPath);
-		if (IsString(val)) return chunkInfo => str.includes(chunkInfo.entryPath);
-		if (IsFunction(val)) return chunkInfo => val(chunkInfo.entryPath); *#/
-		const entryPathMatchFuncs = ToArray(matchObj.entryPath).map(FileMatchToFunction);
-		return chunkInfo => {
-			for (let entryPath of chunkInfo.entryPaths) {
-				if (SomeFuncsMatch(entryPathMatchFuncs, entryPath)) return true;
-			}
-			return false;
-		};
-	}*/
-	throw new Error("Invalid chunk-match.");
-}
-function FileMatchToFunction(val) {
-	if (IsBool(val)) return path => val;
-	if (IsRegex(val)) return path => val.test(path);
-	if (IsString(val)) return path => path.includes(val);
-	if (IsFunction(val)) return path => val(path);
-	throw new Error("Invalid file-match.");
-}
-
-function SomeFuncsMatch(matchFuncs, val) {
-	for (let i = 0; i < matchFuncs.length; i++) {
-		if (matchFuncs[i](val) === true) {
-			return true; // match *any* condition
-		}
-	}
-	return false;
-}
-
-function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
-	if (targetMatchCountOrRange == null) return true;
-	if (IsNumber(targetMatchCountOrRange)) {
-		return actualMatchCount == targetMatchCountOrRange;
-	}
-	if (IsObject(targetMatchCountOrRange)) {
-		let satisfiesMin = actualMatchCount >= targetMatchCountOrRange.min || targetMatchCountOrRange.min == null;
-		let satisfiesMax = actualMatchCount <= targetMatchCountOrRange.max || targetMatchCountOrRange.max == null;
-		return satisfiesMin && satisfiesMax;
-	}
-	throw new Error("Match-count target must either be a number (for exact target), or a {min, max} object (for range).");
-}
+const {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect} = require("./Utils");
 
 const packageName = "webpack-plugin-string-replace";
 class StringReplacerPlugin {
@@ -261,15 +188,14 @@ class StringReplacerPlugin {
 			const chunkEntryPaths = this.currentRun.chunkEntryPaths_perChunk[chunkIndex] || chunkEntryPaths_now;
 			const chunkInfo = {index: chunkIndex, entryPaths: chunkEntryPaths};
 			console.log(`\n\n\n\n\n@index(${chunkIndex}) Chunk entry paths:`, chunkEntryPaths, "Chunk entry paths_now:", chunkEntryPaths_now);*/
-			const chunkInfo = {index: chunkIndex, definedChunkNames: [chunk.name]};
+			const chunkInfo = {
+				index: chunkIndex,
+				definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name)),
+			};
 			/*let definedEntries = chunk["_preparedEntrypoints"];
 			if (definedEntries) {
 				chunkInfo.definedChunkNames = chunkInfo.definedChunkNames.concat(definedEntries.map(a=>a.name));
 			}*/
-			let definedEntries = chunk.entries;
-			if (definedEntries) {
-				chunkInfo.definedChunkNames = chunkInfo.definedChunkNames.concat(definedEntries.map(a=>a.name));
-			}
 			//console.log(`\n\n\n\n\nChunkInfo: `, JSON.stringify(chunkInfo));
 			
 			chunkIsMatch = SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);
