@@ -1,0 +1,30 @@
+{
+  "name": "webpack-string-replacer",
+  "description": "Replace strings in webpack modules, with rich configuration and enforceable match-counts.",
+  "version": "0.0.1",
+  "main": "Source/index.js",
+  "license": "MIT",
+  "author": {
+    "name": "Stephen Wicklund",
+    "email": "venryx@gmail.com"
+  },
+  "keywords": [
+    "webpack",
+    "plugin",
+    "webpack-plugin",
+    "bundle",
+    "content",
+    "text",
+    "string",
+    "token",
+    "find",
+    "replace",
+    "replacer"
+  ],
+  "engines": {
+    "node": ">=4"
+  },
+  "devDependencies": {
+    "webpack": "^4.41.2"
+  }
+}
