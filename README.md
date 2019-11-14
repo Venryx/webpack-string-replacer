@@ -186,6 +186,7 @@ Apply stage - unknown:
 
 #### More specialized or manual options
 
+* https://github.com/iminif/html-replace-webpack-plugin
 * https://webpack.js.org/plugins/define-plugin
 * https://webpack.js.org/plugins/banner-plugin
 * https://github.com/NMFR/last-call-webpack-plugin
