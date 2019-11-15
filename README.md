@@ -67,9 +67,9 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 > If true, files matches by rules will have their paths logged for inspection.
 
-#### `logFileMatchContents` - bool
+#### `logFileMatchContents` - number
 
-> If true, files matches by rules will have their complete contents logged for inspection.
+> If set, files matches by rules will have the first X characters of their contents logged for inspection.
 
 #### `logAroundPatternMatches` - number
 

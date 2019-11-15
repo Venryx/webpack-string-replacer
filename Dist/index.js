@@ -137,7 +137,6 @@ class WebpackStringReplacer {
             if (this.Stages.includes("optimizeChunkAssets")) {
                 compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
                     //console.log("Chunks files:", chunks);
-                    console.log("Test1");
                     for (let [ruleIndex, rule] of opt.rules.entries()) {
                         const chunkIncludeFuncs = Utils_1.ToArray(rule.chunkInclude).map(Utils_1.ChunkMatchToFunction);
                         const chunkExcludeFuncs = Utils_1.ToArray(rule.chunkExclude).map(Utils_1.ChunkMatchToFunction);
@@ -152,7 +151,6 @@ class WebpackStringReplacer {
                             return indices;
                         }
                         for (let [chunkIndex, chunk] of chunks.entries()) {
-                            console.log("Output files:" + chunk.files);
                             const chunkInfo = {
                                 index: chunkIndex,
                                 definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a => a.name))
@@ -172,9 +170,9 @@ class WebpackStringReplacer {
                                 rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex]++;
                                 const originalSource = compilation.assets[file];
                                 if (this.options.logFileMatches || this.options.logFileMatchContents) {
-                                    console.log(`Found output-file match. @rule(${ruleIndex}) @path:` + path_1.default);
+                                    console.log(`Found output-file match. @rule(${ruleIndex}) @file:` + file);
                                     if (this.options.logFileMatchContents) {
-                                        console.log(`Contents:\n==========\n${originalSource}\n==========\n`);
+                                        console.log(`Contents:\n==========\n${originalSource.source().slice(0, this.options.logFileMatchContents)}\n==========\n`);
                                     }
                                 }
                                 let newSource;
@@ -208,7 +206,7 @@ class WebpackStringReplacer {
                     callback();
                 });
             }
-            // stage 3: detect when compilation is truly finished, then verify match counts, then reset for next run
+            // stage 4: detect when compilation is truly finished, then verify match counts, then reset for next run
             compilation.hooks.afterOptimizeChunkAssets.tap(packageName, (chunks, callback) => {
                 this.currentRun.compilationsCompleted++;
                 // if we just finished applying the rules for the last chunk, the compilation-run is complete
@@ -252,7 +250,7 @@ class WebpackStringReplacer {
             if (this.options.logFileMatches || this.options.logFileMatchContents) {
                 console.log(`Found file match. @rule(${ruleIndex}) @path:` + path);
                 if (this.options.logFileMatchContents) {
-                    console.log(`Contents:\n==========\n${mod._source._value}\n==========\n`);
+                    console.log(`Contents:\n==========\n${mod._source._value.slice(0, this.options.logFileMatchContents)}\n==========\n`);
                 }
             }
             return true;
