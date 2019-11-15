@@ -1,7 +1,7 @@
 // @ts-check_disabled
 import path from "path";
 import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct} from "./Utils";
-import {Options, ApplyStage} from "./Options";
+import {Options, ApplyStage, Rule} from "./Options";
 import {ReplaceSource} from "webpack-sources";
 
 export class CompilationRun {
@@ -10,20 +10,14 @@ export class CompilationRun {
 	optimizeModules_chunksReached = 0;
 }
 
-const packageName = "webpack-plugin-string-replace";
-export class StringReplacerPlugin {
+const packageName = "webpack-string-replacer";
+export class WebpackStringReplacer {
 	//static instance;
-	constructor(options) {
-		StringReplacerPlugin["instance"] = this;
+	constructor(options: Options) {
+		WebpackStringReplacer["instance"] = this;
 		for (let [index, rule] of options.rules.entries()) {
 			// normalize rule props
-			rule = Object.assign({
-				applyStage: "loader",
-				chunkInclude: true, chunkExclude: false,
-				outputFileInclude: true, outputFileExclude: false,
-				fileInclude: true, fileExclude: false,
-				replacements: []
-			}, rule);
+			rule = Object.assign(new Rule(), rule);
 			options.rules[index] = rule;
 		}
 		this.options = options;
@@ -67,7 +61,7 @@ export class StringReplacerPlugin {
 		}
 	}
 
-	// now set up the StringReplacerPlugin.instance.SourceTransformer_CallFromLoader function (for the loader to call)
+	// now set up the WebpackStringReplacer.instance.SourceTransformer_CallFromLoader function (for the loader to call)
 	SourceTransformer_CallFromLoader(source, options) {
 		// some loaders botch the options-passing, so re-parse it if needed
 		if (typeof options == "string") {
@@ -350,4 +344,4 @@ export class StringReplacerPlugin {
 		}
 	};
 }
-export default StringReplacerPlugin;
+export default WebpackStringReplacer;

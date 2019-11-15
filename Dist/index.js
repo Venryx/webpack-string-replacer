@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 // @ts-check_disabled
 const path_1 = require("path");
 const Utils_1 = require("./Utils");
+const Options_1 = require("./Options");
 const webpack_sources_1 = require("webpack-sources");
 class CompilationRun {
     constructor() {
@@ -12,20 +13,14 @@ class CompilationRun {
     }
 }
 exports.CompilationRun = CompilationRun;
-const packageName = "webpack-plugin-string-replace";
-class StringReplacerPlugin {
+const packageName = "webpack-string-replacer";
+class WebpackStringReplacer {
     //static instance;
     constructor(options) {
-        StringReplacerPlugin["instance"] = this;
+        WebpackStringReplacer["instance"] = this;
         for (let [index, rule] of options.rules.entries()) {
             // normalize rule props
-            rule = Object.assign({
-                applyStage: "loader",
-                chunkInclude: true, chunkExclude: false,
-                outputFileInclude: true, outputFileExclude: false,
-                fileInclude: true, fileExclude: false,
-                replacements: []
-            }, rule);
+            rule = Object.assign(new Options_1.Rule(), rule);
             options.rules[index] = rule;
         }
         this.options = options;
@@ -64,7 +59,7 @@ class StringReplacerPlugin {
             }
         }
     }
-    // now set up the StringReplacerPlugin.instance.SourceTransformer_CallFromLoader function (for the loader to call)
+    // now set up the WebpackStringReplacer.instance.SourceTransformer_CallFromLoader function (for the loader to call)
     SourceTransformer_CallFromLoader(source, options) {
         // some loaders botch the options-passing, so re-parse it if needed
         if (typeof options == "string") {
@@ -334,6 +329,6 @@ class StringReplacerPlugin {
     }
     ;
 }
-exports.StringReplacerPlugin = StringReplacerPlugin;
-exports.default = StringReplacerPlugin;
+exports.WebpackStringReplacer = WebpackStringReplacer;
+exports.default = WebpackStringReplacer;
 //# sourceMappingURL=index.js.map

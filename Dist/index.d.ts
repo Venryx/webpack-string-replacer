@@ -4,8 +4,8 @@ export declare class CompilationRun {
     chunkEntryPaths_perChunk: number[];
     optimizeModules_chunksReached: number;
 }
-export declare class StringReplacerPlugin {
-    constructor(options: any);
+export declare class WebpackStringReplacer {
+    constructor(options: Options);
     options: Options;
     currentRun: CompilationRun;
     ResetCurrentRun(): void;
@@ -20,4 +20,4 @@ export declare class StringReplacerPlugin {
     ApplyRuleAsSourceTransform(rule: any, moduleSource: any, chunkIndex: any): any;
     VerifyMatchCounts(): void;
 }
-export default StringReplacerPlugin;
+export default WebpackStringReplacer;

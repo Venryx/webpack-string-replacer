@@ -11,6 +11,17 @@ class Options {
 }
 exports.Options = Options;
 class Rule {
+    constructor() {
+        //applyStage: ApplyStage;
+        this.applyStage = "loader";
+        this.chunkInclude = true;
+        this.chunkExclude = false;
+        this.outputFileInclude = true;
+        this.outputFileExclude = false;
+        this.fileInclude = true;
+        this.fileExclude = false;
+        this.replacements = [];
+    }
 }
 exports.Rule = Rule;
 class Replacement {

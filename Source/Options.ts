@@ -3,44 +3,45 @@ export class Options {
 		Object.assign(this, initialProps);
 	}
 
-	logFileMatches = false;
-	logFileMatchContents = false;
-	logAroundPatternMatches = null as number;
+	logFileMatches? = false;
+	logFileMatchContents? = false;
+	logAroundPatternMatches? = null as number;
 
 	rules = [] as Rule[];
 }
 
+export type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";
 export class Rule {
-	applyStage: ApplyStage;
-	chunkInclude: ChunkMatch;
-	chunkExclude: ChunkMatch;
-	chunkMatchCount: MatchCountTarget;
+	//applyStage: ApplyStage;
+	applyStage? = "loader" as ApplyStage | "loader" | "optimizeModules" | "optimizeChunkAssets";
+	chunkInclude? = true as ChunkMatch;
+	chunkExclude? = false as ChunkMatch;
+	chunkMatchCount?: MatchCountTarget;
 
-	outputFileInclude: FileMatch;
-	outputFileExclude: FileMatch;
-	outputFileMatchCount: MatchCountTarget;
+	outputFileInclude? = true as FileMatch;
+	outputFileExclude? = false as FileMatch;
+	outputFileMatchCount?: MatchCountTarget;
 
-	fileInclude: FileMatch;
-	fileExclude: FileMatch;
-	fileMatchCount: MatchCountTarget;
+	fileInclude? = true as FileMatch;
+	fileExclude? = false as FileMatch;
+	fileMatchCount?: MatchCountTarget;
 
-	replacements: Replacement[];
+	replacements? = [] as Replacement[];
 
 	// internal metadata
-	chunkIsMatch_perChunk: boolean[];
-	outputFileMatchCounts_perChunk: number[];
-	fileMatchCounts_perChunk: number[];
+	chunkIsMatch_perChunk?: boolean[];
+	outputFileMatchCounts_perChunk?: number[];
+	fileMatchCounts_perChunk?: number[];
 }
-export type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";
 
 export class Replacement {
 	pattern: string | RegExp;
-	patternMatchCount: MatchCountTarget;
+	patternMatchCount?: MatchCountTarget;
 	replacement: string | ((substring: string, ...args: (string | number)[])=>string);
 
 	// internal metadata
-	outputFileMatchCounts_perChunk: number[];
-	fileMatchCounts_perChunk: number[];
+	outputFileMatchCounts_perChunk?: number[];
+	fileMatchCounts_perChunk?: number[];
 }
 
 export type ChunkMatch = any;

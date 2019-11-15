@@ -12,9 +12,9 @@ npm install --save-dev webpack-string-replacer
 
 Basic example:
 ```
-const StringReplacerPlugin = require("webpack-string-replacer");
+const WebpackStringReplacer = require("webpack-string-replacer");
 
-webpackConfig.plugins.push(new StringReplacerPlugin({
+webpackConfig.plugins.push(new WebpackStringReplacer({
 	rules: [{
 		fileInclude: "targetFile.js",
 		replacements: [
@@ -30,9 +30,9 @@ webpackConfig.plugins.push(new StringReplacerPlugin({
 
 Advanced example:
 ```
-const StringReplacerPlugin = require("webpack-string-replacer");
+const WebpackStringReplacer = require("webpack-string-replacer");
 
-webpackConfig.plugins.push(new StringReplacerPlugin({
+webpackConfig.plugins.push(new WebpackStringReplacer({
 	logAroundPatternMatches: 200,
 	rules: [{
 		applyStage: "optimizeChunkAssets",

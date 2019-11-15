@@ -11,7 +11,8 @@
 		"jsx": "react",
 		"noImplicitAny": false,
 		"experimentalDecorators": true,
-		"allowSyntheticDefaultImports": true,
+		"allowSyntheticDefaultImports": true, // doesn't modify output, *or* own import code (it's just for type-checking)
+		//"esModuleInterop": true, // doesn't modify output, only code for the stuff we import
 		"alwaysStrict": true, // alternative: "@babel/plugin-transform-strict-mode"; went with this since doesn't require another npm package
 		"outDir": "Dist",
 		"declaration": true,

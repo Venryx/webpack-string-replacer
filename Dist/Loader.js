@@ -1,5 +1,5 @@
 "use strict";
-var StringReplacerPlugin = require('./index.js');
+var WebpackStringReplacer = require('./index.js');
 // IMPORTANT: LOADERS ARE NOT ALWAYS CALLED DETERMINISTICALLY / IN THE SAME ORDER
 // So make sure any code it runs is robust to out-of-order effects.
 function NormalizePath(path) {
@@ -9,7 +9,7 @@ function NormalizePath(path) {
 module.exports = function (source, map, meta) {
     try {
         //var callback = this.async();
-        source = StringReplacerPlugin.instance.SourceTransformer_CallFromLoader(source, this.query);
+        source = WebpackStringReplacer.instance.SourceTransformer_CallFromLoader(source, this.query);
         // if this module has the html-webpack-plugin as one of its loaders, remove/hide ourself from the loaders list, as otherwise it refuses to run, causing build errors
         const htmlLoader = this.loaders.find(a => NormalizePath(a.path).includes("/html-webpack-plugin/"));
         if (htmlLoader) {

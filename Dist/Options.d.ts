@@ -1,33 +1,33 @@
 export declare class Options {
     constructor(initialProps: Partial<Options>);
-    logFileMatches: boolean;
-    logFileMatchContents: boolean;
-    logAroundPatternMatches: number;
+    logFileMatches?: boolean;
+    logFileMatchContents?: boolean;
+    logAroundPatternMatches?: number;
     rules: Rule[];
 }
-export declare class Rule {
-    applyStage: ApplyStage;
-    chunkInclude: ChunkMatch;
-    chunkExclude: ChunkMatch;
-    chunkMatchCount: MatchCountTarget;
-    outputFileInclude: FileMatch;
-    outputFileExclude: FileMatch;
-    outputFileMatchCount: MatchCountTarget;
-    fileInclude: FileMatch;
-    fileExclude: FileMatch;
-    fileMatchCount: MatchCountTarget;
-    replacements: Replacement[];
-    chunkIsMatch_perChunk: boolean[];
-    outputFileMatchCounts_perChunk: number[];
-    fileMatchCounts_perChunk: number[];
-}
 export declare type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";
+export declare class Rule {
+    applyStage?: ApplyStage;
+    chunkInclude?: any;
+    chunkExclude?: any;
+    chunkMatchCount?: MatchCountTarget;
+    outputFileInclude?: FileMatch;
+    outputFileExclude?: FileMatch;
+    outputFileMatchCount?: MatchCountTarget;
+    fileInclude?: FileMatch;
+    fileExclude?: FileMatch;
+    fileMatchCount?: MatchCountTarget;
+    replacements?: Replacement[];
+    chunkIsMatch_perChunk?: boolean[];
+    outputFileMatchCounts_perChunk?: number[];
+    fileMatchCounts_perChunk?: number[];
+}
 export declare class Replacement {
     pattern: string | RegExp;
-    patternMatchCount: MatchCountTarget;
+    patternMatchCount?: MatchCountTarget;
     replacement: string | ((substring: string, ...args: (string | number)[]) => string);
-    outputFileMatchCounts_perChunk: number[];
-    fileMatchCounts_perChunk: number[];
+    outputFileMatchCounts_perChunk?: number[];
+    fileMatchCounts_perChunk?: number[];
 }
 export declare type ChunkMatch = any;
 export declare type FileMatch = FileMatch_Single | FileMatch_Single[];
