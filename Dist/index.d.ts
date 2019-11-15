@@ -1,15 +1,15 @@
 import { Options, ApplyStage } from "./Options";
 export declare class CompilationRun {
-    chunks: any[];
+    compilations: any[];
     chunkEntryPaths_perChunk: number[];
-    optimizeModules_chunksReached: number;
+    compilationsCompleted: number;
 }
 export declare class WebpackStringReplacer {
     constructor(options: Options);
     options: Options;
     currentRun: CompilationRun;
     ResetCurrentRun(): void;
-    InitChunkMetaForChunkIndex(chunkIndex: any): void;
+    InitCompilationMetaForCompilationIndex(compilationIndex: any): void;
     SourceTransformer_CallFromLoader(source: any, options: any): any;
     stages_cache: ApplyStage[];
     readonly Stages: ApplyStage[];

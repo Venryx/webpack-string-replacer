@@ -18,14 +18,14 @@ export declare class Rule {
     fileExclude?: FileMatch;
     fileMatchCount?: MatchCountTarget;
     replacements?: Replacement[];
-    chunkIsMatch_perChunk?: boolean[];
-    fileOrOutputFileMatchCounts_perChunk?: number[];
+    chunkIsMatch_perCompilation?: boolean[];
+    fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 export declare class Replacement {
     pattern: string | RegExp;
     patternMatchCount?: MatchCountTarget;
     replacement: string | ((substring: string, ...args: (string | number)[]) => string);
-    fileOrOutputFileMatchCounts_perChunk?: number[];
+    fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 export declare type ChunkMatch = any;
 export declare type FileMatch = FileMatch_Single | FileMatch_Single[];

@@ -29,8 +29,8 @@ export class Rule {
 	replacements? = [] as Replacement[];
 
 	// internal metadata
-	chunkIsMatch_perChunk?: boolean[];
-	fileOrOutputFileMatchCounts_perChunk?: number[];
+	chunkIsMatch_perCompilation?: boolean[];
+	fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 
 export class Replacement {
@@ -39,7 +39,7 @@ export class Replacement {
 	replacement: string | ((substring: string, ...args: (string | number)[])=>string);
 
 	// internal metadata
-	fileOrOutputFileMatchCounts_perChunk?: number[];
+	fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 
 export type ChunkMatch = any;

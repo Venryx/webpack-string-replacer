@@ -5,9 +5,9 @@ import {Options, ApplyStage, Rule} from "./Options";
 import {ReplaceSource} from "webpack-sources";
 
 export class CompilationRun {
-	chunks = [] as any[];
+	compilations = [] as any[];
 	chunkEntryPaths_perChunk = [] as number[];
-	optimizeModules_chunksReached = 0;
+	compilationsCompleted = 0;
 }
 
 const packageName = "webpack-string-replacer";
@@ -32,27 +32,27 @@ export class WebpackStringReplacer {
 	ResetCurrentRun() {
 		console.log("Resetting");
 		this.currentRun = {
-			chunks: [],
+			compilations: [],
 			chunkEntryPaths_perChunk: [],
 			//chunkMeta: [],
-			optimizeModules_chunksReached: 0,
+			compilationsCompleted: 0,
 		};
 		// just store on objects under options
 		for (let rule of this.options.rules) {
-			rule.chunkIsMatch_perChunk = [];
-			rule.fileOrOutputFileMatchCounts_perChunk = [];
+			rule.chunkIsMatch_perCompilation = [];
+			rule.fileOrOutputFileMatchCounts_perCompilation = [];
 			for (let replacement of rule.replacements) {
-				replacement.fileOrOutputFileMatchCounts_perChunk = [];
+				replacement.fileOrOutputFileMatchCounts_perCompilation = [];
 			}
 		}
 	}
-	InitChunkMetaForChunkIndex(chunkIndex) {
-		//this.currentRun.chunkMeta[chunkIndex] = {}
+	InitCompilationMetaForCompilationIndex(compilationIndex) {
+		//this.currentRun.chunkMeta[compilationIndex] = {}
 		for (let rule of this.options.rules) {
-			rule.chunkIsMatch_perChunk[chunkIndex] = null;
-			rule.fileOrOutputFileMatchCounts_perChunk[chunkIndex] = 0;
+			rule.chunkIsMatch_perCompilation[compilationIndex] = null;
+			rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = 0;
 			for (let replacement of rule.replacements) {
-				replacement.fileOrOutputFileMatchCounts_perChunk[chunkIndex] = 0;
+				replacement.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = 0;
 			}
 		}
 	}
@@ -93,16 +93,18 @@ export class WebpackStringReplacer {
 		const opt = this.options;
 		this.ResetCurrentRun(); // reset for first run
 		compiler.hooks.compilation.tap(packageName, (compilation, compilationParams) => {
-			this.currentRun.chunks.push(compilation);
-			const chunkIndex = this.currentRun.chunks.length - 1;
-			this.InitChunkMetaForChunkIndex(chunkIndex);
+			this.currentRun.compilations.push(compilation);
+			const compilationIndex = this.currentRun.compilations.length - 1;
+			this.InitCompilationMetaForCompilationIndex(compilationIndex);
 
 			// stage 1 (if apply-stage early/mid): insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
 			if (this.Stages.includes("loader") || this.Stages.includes("optimizeModules")) {
 				compilation.hooks.normalModuleLoader.tap(packageName, (loaderContext, mod)=> {
 					if (loaderContext._compilation != compilation) throw new Error("LoaderContext and chunk out of sync.");
 
-					let rulesToApply = this.options.rules.filter(rule=>this.PrepareToApplyRuleToModules(rule, [mod], compilation, chunkIndex) != null);
+					// todo: fix that we are treating compilations as if they were chunks!
+					const chunk = compilation;
+					let rulesToApply = this.options.rules.filter(rule=>this.PrepareToApplyRuleToModules(rule, [mod], chunk, compilationIndex) != null);
 					if (rulesToApply.length == 0) return;
 					const rulesToApply_indexes = rulesToApply.map(rule=>this.options.rules.indexOf(rule));
 					if (mod.loaders == null) return; // if no other loader is set to load it, we probably shouldn't either
@@ -111,7 +113,7 @@ export class WebpackStringReplacer {
 					mod.loaders.push({
 					//mod.loaders.unshift({
 						loader: path.resolve(__dirname, 'Loader.js'),
-						options: {rulesToApply_indexes, chunkIndex},
+						options: {rulesToApply_indexes, compilationIndex},
 					});
 				});
 			}
@@ -126,10 +128,12 @@ export class WebpackStringReplacer {
 						let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*/
 						
 						for (let rule of this.options.rules) {
-							let {matchingModules} = this.PrepareToApplyRuleToModules(rule, modules, chunkIndex, compilation);
+							// todo: fix that we are treating compilations as if they were chunks!
+							const chunk = compilation;
+							let {matchingModules} = this.PrepareToApplyRuleToModules(rule, modules, chunk, compilationIndex);
 							for (let mod of matchingModules) {
 								const sourceText = mod._source._value;
-								mod._source._value = this.ApplyRuleAsSourceTransform(rule, sourceText, chunkIndex);
+								mod._source._value = this.ApplyRuleAsSourceTransform(rule, sourceText, compilationIndex);
 							}
 						}
 					}
@@ -139,6 +143,8 @@ export class WebpackStringReplacer {
 			// stage 3 (if apply-stage late)
 			if (this.Stages.includes("optimizeChunkAssets")) {
 				compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
+					//console.log("Chunks files:", chunks);
+					console.log("Test1");
 					for (let [ruleIndex, rule] of opt.rules.entries()) {
 						const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
 						const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
@@ -154,20 +160,21 @@ export class WebpackStringReplacer {
 						}
 		
 						for (let [chunkIndex, chunk] of chunks.entries()) {
+							console.log("Output files:" + chunk.files);
 							const chunkInfo = {
 								index: chunkIndex,
 								definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
 							};
-							rule.chunkIsMatch_perChunk[chunkIndex] = false;
+							rule.chunkIsMatch_perCompilation[compilationIndex] = false;
 							if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) continue; // if chunk not included by rule, doesn't match
 							if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) continue; // if chunk excluded by rule, doesn't match
-							rule.chunkIsMatch_perChunk[chunkIndex] = true;
+							rule.chunkIsMatch_perCompilation[compilationIndex] = true;
 		
 							//const matchingFiles = chunk.files.filter(file=> {})
 							for (let [fileIndex, file] of chunk.files.entries()) {
 								if (!SomeFuncsMatch(outputFileIncludeFuncs, file)) continue; // if output-file not included by rule, doesn't match
 								if (SomeFuncsMatch(outputFileExcludeFuncs, file)) continue; // if output-file excluded by rule, doesn't match
-								rule.fileOrOutputFileMatchCounts_perChunk[chunkIndex]++;
+								rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex]++;
 
 								const originalSource = compilation.assets[file];
 								if (this.options.logFileMatches || this.options.logFileMatchContents) {
@@ -192,7 +199,7 @@ export class WebpackStringReplacer {
 										//console.log("Replacing;", startPos, ";", endPos);
 										newSource.replace(startPos, endPos, entry.replacement);
 									});
-									entry.fileOrOutputFileMatchCounts_perChunk[chunkIndex] += matchIndexes.length;
+									entry.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] += matchIndexes.length;
 								}
 		
 								if (newSource) {
@@ -205,24 +212,22 @@ export class WebpackStringReplacer {
 							}
 						}
 					}
-	
-					/*this.VerifyMatchCounts();
-					this.ResetCurrentRun(); // reset for next run*/
+
 					callback();
 				});
-				
-				// stage 4: detect when compilation is truly finished, then verify match counts, then reset for next run
-				compilation.hooks.afterOptimizeModules.tap(packageName, modules=> {
-					this.currentRun.optimizeModules_chunksReached++;
-					// if we just finished applying the rules for the last chunk, the compilation-run is complete
-					let isLastChunk = this.currentRun.optimizeModules_chunksReached == this.currentRun.chunks.length;
-					// if the compilation run is complete, verify the match counts
-					if (isLastChunk) {
-						this.VerifyMatchCounts();
-						this.ResetCurrentRun(); // reset for next run
-					}
-				});
 			}
+
+			// stage 3: detect when compilation is truly finished, then verify match counts, then reset for next run
+			compilation.hooks.afterOptimizeChunkAssets.tap(packageName, (chunks, callback) => {
+				this.currentRun.compilationsCompleted++;
+				// if we just finished applying the rules for the last chunk, the compilation-run is complete
+				let isLastCompilation = this.currentRun.compilationsCompleted == this.currentRun.compilations.length;
+				// if the compilation run is complete, verify the match counts
+				if (isLastCompilation) {
+					this.VerifyMatchCounts();
+					this.ResetCurrentRun(); // reset for next run
+				}
+			});
 		});
 	}
 
@@ -307,39 +312,39 @@ export class WebpackStringReplacer {
 	}
 
 	VerifyMatchCounts() {
-		console.log(`Verifying match counts... @chunks(${this.currentRun.chunks.length})`);
+		console.log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
 		for (let [ruleIndex, rule] of this.options.rules.entries()) {
-			let chunksMatching = rule.chunkIsMatch_perChunk.filter(isMatch=>isMatch);
+			let chunksMatching = rule.chunkIsMatch_perCompilation.filter(isMatch=>isMatch);
 			if (!IsMatchCountCorrect(chunksMatching.length, rule.chunkMatchCount)) {
 				throw new Error(`
 					A rule did not have as many chunk-matches as it should have.
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Is-match (per chunk): [${rule.chunkIsMatch_perChunk}] @target(${JSON.stringify(rule.chunkMatchCount)})
+					Is-match (per chunk): [${rule.chunkIsMatch_perCompilation}] @target(${JSON.stringify(rule.chunkMatchCount)})
 
 					Ensure you have the correct versions for any npm modules involved.
 				`);
 			}
 
 			const lateStage = rule.applyStage == "optimizeChunkAssets";
-			let chunksWithCorrectRuleMatchCount = rule.fileOrOutputFileMatchCounts_perChunk.filter(count=>IsMatchCountCorrect(count, rule[lateStage ? "outputFileMatchCount" : "fileMatchCount"]));
+			let chunksWithCorrectRuleMatchCount = rule.fileOrOutputFileMatchCounts_perCompilation.filter(count=>IsMatchCountCorrect(count, rule[lateStage ? "outputFileMatchCount" : "fileMatchCount"]));
 			if (chunksWithCorrectRuleMatchCount.length == 0) {
 				throw new Error(`
 					A rule did not have as many ${lateStage ? "output-" : ""}file-matches as it should have (in any chunk).
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Match counts (per chunk): [${rule.fileOrOutputFileMatchCounts_perChunk}] @target(${JSON.stringify(rule.fileMatchCount)})
+					Match counts (per chunk): [${rule.fileOrOutputFileMatchCounts_perCompilation}] @target(${JSON.stringify(rule.fileMatchCount)})
 
 					Ensure you have the correct versions for any npm modules involved.
 				`);
 			}
 			
 			for (let [index, replacement] of rule.replacements.entries()) {
-				let chunksWithCorrectReplacementMatchCount = replacement.fileOrOutputFileMatchCounts_perChunk.filter(count=>IsMatchCountCorrect(count, replacement.patternMatchCount));
+				let chunksWithCorrectReplacementMatchCount = replacement.fileOrOutputFileMatchCounts_perCompilation.filter(count=>IsMatchCountCorrect(count, replacement.patternMatchCount));
 				if (chunksWithCorrectReplacementMatchCount.length == 0) {
 					throw new Error(`
 						A string-replacement pattern did not have as many matches as it should have (in any chunk).
 						Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
 						Replacement: #${index} @pattern(${replacement.pattern})
-						Match counts (per chunk): [${replacement.fileOrOutputFileMatchCounts_perChunk}] @target(${JSON.stringify(replacement.patternMatchCount)})
+						Match counts (per chunk): [${replacement.fileOrOutputFileMatchCounts_perCompilation}] @target(${JSON.stringify(replacement.patternMatchCount)})
 
 						Ensure you have the correct versions for any npm modules involved.
 					`);
@@ -349,3 +354,8 @@ export class WebpackStringReplacer {
 	};
 }
 export default WebpackStringReplacer;
+
+// make WebpackStringReplacer the module exports-obj itself
+module.exports = WebpackStringReplacer;
+// update WebpackStringReplace (the new exports-obj) with the other exports put on the TypeScript-known "exports" object
+Object.assign(WebpackStringReplacer, exports);
