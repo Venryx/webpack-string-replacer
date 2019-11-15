@@ -19,15 +19,13 @@ export declare class Rule {
     fileMatchCount?: MatchCountTarget;
     replacements?: Replacement[];
     chunkIsMatch_perChunk?: boolean[];
-    outputFileMatchCounts_perChunk?: number[];
-    fileMatchCounts_perChunk?: number[];
+    fileOrOutputFileMatchCounts_perChunk?: number[];
 }
 export declare class Replacement {
     pattern: string | RegExp;
     patternMatchCount?: MatchCountTarget;
     replacement: string | ((substring: string, ...args: (string | number)[]) => string);
-    outputFileMatchCounts_perChunk?: number[];
-    fileMatchCounts_perChunk?: number[];
+    fileOrOutputFileMatchCounts_perChunk?: number[];
 }
 export declare type ChunkMatch = any;
 export declare type FileMatch = FileMatch_Single | FileMatch_Single[];

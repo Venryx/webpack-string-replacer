@@ -30,8 +30,7 @@ export class Rule {
 
 	// internal metadata
 	chunkIsMatch_perChunk?: boolean[];
-	outputFileMatchCounts_perChunk?: number[];
-	fileMatchCounts_perChunk?: number[];
+	fileOrOutputFileMatchCounts_perChunk?: number[];
 }
 
 export class Replacement {
@@ -40,8 +39,7 @@ export class Replacement {
 	replacement: string | ((substring: string, ...args: (string | number)[])=>string);
 
 	// internal metadata
-	outputFileMatchCounts_perChunk?: number[];
-	fileMatchCounts_perChunk?: number[];
+	fileOrOutputFileMatchCounts_perChunk?: number[];
 }
 
 export type ChunkMatch = any;

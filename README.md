@@ -65,11 +65,11 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 #### `logFileMatches` - bool
 
-> If true, files matches by rules will have their paths logged for inspection. (not yet compatible with `optimizeChunkAssets`)
+> If true, files matches by rules will have their paths logged for inspection.
 
 #### `logFileMatchContents` - bool
 
-> If true, files matches by rules will have their complete contents logged for inspection. (not yet compatible with `optimizeChunkAssets`)
+> If true, files matches by rules will have their complete contents logged for inspection.
 
 #### `logAroundPatternMatches` - number
 

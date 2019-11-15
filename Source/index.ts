@@ -40,11 +40,9 @@ export class WebpackStringReplacer {
 		// just store on objects under options
 		for (let rule of this.options.rules) {
 			rule.chunkIsMatch_perChunk = [];
-			rule.outputFileMatchCounts_perChunk = [];
-			rule.fileMatchCounts_perChunk = [];
+			rule.fileOrOutputFileMatchCounts_perChunk = [];
 			for (let replacement of rule.replacements) {
-				replacement.outputFileMatchCounts_perChunk = [];
-				replacement.fileMatchCounts_perChunk = [];
+				replacement.fileOrOutputFileMatchCounts_perChunk = [];
 			}
 		}
 	}
@@ -52,11 +50,9 @@ export class WebpackStringReplacer {
 		//this.currentRun.chunkMeta[chunkIndex] = {}
 		for (let rule of this.options.rules) {
 			rule.chunkIsMatch_perChunk[chunkIndex] = null;
-			rule.outputFileMatchCounts_perChunk[chunkIndex] = 0;
-			rule.fileMatchCounts_perChunk[chunkIndex] = 0;
+			rule.fileOrOutputFileMatchCounts_perChunk[chunkIndex] = 0;
 			for (let replacement of rule.replacements) {
-				replacement.outputFileMatchCounts_perChunk[chunkIndex] = 0;
-				replacement.fileMatchCounts_perChunk[chunkIndex] = 0;
+				replacement.fileOrOutputFileMatchCounts_perChunk[chunkIndex] = 0;
 			}
 		}
 	}
@@ -143,7 +139,7 @@ export class WebpackStringReplacer {
 			// stage 3 (if apply-stage late)
 			if (this.Stages.includes("optimizeChunkAssets")) {
 				compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
-					for (let rule of opt.rules) {
+					for (let [ruleIndex, rule] of opt.rules.entries()) {
 						const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
 						const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
 						const outputFileIncludeFuncs = ToArray(rule.outputFileInclude).map(FileMatchToFunction);
@@ -171,9 +167,16 @@ export class WebpackStringReplacer {
 							for (let [fileIndex, file] of chunk.files.entries()) {
 								if (!SomeFuncsMatch(outputFileIncludeFuncs, file)) continue; // if output-file not included by rule, doesn't match
 								if (SomeFuncsMatch(outputFileExcludeFuncs, file)) continue; // if output-file excluded by rule, doesn't match
-								rule.outputFileMatchCounts_perChunk[chunkIndex]++;
-		
+								rule.fileOrOutputFileMatchCounts_perChunk[chunkIndex]++;
+
 								const originalSource = compilation.assets[file];
+								if (this.options.logFileMatches || this.options.logFileMatchContents) {
+									console.log(`Found output-file match. @rule(${ruleIndex}) @path:` + path);
+									if (this.options.logFileMatchContents) {
+										console.log(`Contents:\n==========\n${originalSource}\n==========\n`);
+									}
+								}
+		
 								let newSource;
 								for (let entry of rule.replacements) {
 									if (!IsString(entry.pattern)) throw new Error("Only string patterns are allowed for optimizeChunkAssets stage currently. (will fix later)");
@@ -189,7 +192,7 @@ export class WebpackStringReplacer {
 										//console.log("Replacing;", startPos, ";", endPos);
 										newSource.replace(startPos, endPos, entry.replacement);
 									});
-									entry.outputFileMatchCounts_perChunk[chunkIndex] += matchIndexes.length;
+									entry.fileOrOutputFileMatchCounts_perChunk[chunkIndex] += matchIndexes.length;
 								}
 		
 								if (newSource) {
@@ -317,25 +320,26 @@ export class WebpackStringReplacer {
 				`);
 			}
 
-			let chunksWithCorrectRuleMatchCount = rule.fileMatchCounts_perChunk.filter(count=>IsMatchCountCorrect(count, rule.fileMatchCount));
+			const lateStage = rule.applyStage == "optimizeChunkAssets";
+			let chunksWithCorrectRuleMatchCount = rule.fileOrOutputFileMatchCounts_perChunk.filter(count=>IsMatchCountCorrect(count, rule[lateStage ? "outputFileMatchCount" : "fileMatchCount"]));
 			if (chunksWithCorrectRuleMatchCount.length == 0) {
 				throw new Error(`
-					A rule did not have as many file-matches as it should have (in any chunk).
+					A rule did not have as many ${lateStage ? "output-" : ""}file-matches as it should have (in any chunk).
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Match counts (per chunk): [${rule.fileMatchCounts_perChunk}] @target(${JSON.stringify(rule.fileMatchCount)})
+					Match counts (per chunk): [${rule.fileOrOutputFileMatchCounts_perChunk}] @target(${JSON.stringify(rule.fileMatchCount)})
 
 					Ensure you have the correct versions for any npm modules involved.
 				`);
 			}
 			
 			for (let [index, replacement] of rule.replacements.entries()) {
-				let chunksWithCorrectReplacementMatchCount = replacement.fileMatchCounts_perChunk.filter(count=>IsMatchCountCorrect(count, replacement.patternMatchCount));
+				let chunksWithCorrectReplacementMatchCount = replacement.fileOrOutputFileMatchCounts_perChunk.filter(count=>IsMatchCountCorrect(count, replacement.patternMatchCount));
 				if (chunksWithCorrectReplacementMatchCount.length == 0) {
 					throw new Error(`
 						A string-replacement pattern did not have as many matches as it should have (in any chunk).
 						Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
 						Replacement: #${index} @pattern(${replacement.pattern})
-						Match counts (per chunk): [${replacement.fileMatchCounts_perChunk}] @target(${JSON.stringify(replacement.patternMatchCount)})
+						Match counts (per chunk): [${replacement.fileOrOutputFileMatchCounts_perChunk}] @target(${JSON.stringify(replacement.patternMatchCount)})
 
 						Ensure you have the correct versions for any npm modules involved.
 					`);
