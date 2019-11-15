@@ -11,7 +11,7 @@ export class CompilationRun {
 }
 
 const packageName = "webpack-plugin-string-replace";
-class StringReplacerPlugin {
+export class StringReplacerPlugin {
 	//static instance;
 	constructor(options) {
 		StringReplacerPlugin["instance"] = this;
@@ -350,6 +350,4 @@ class StringReplacerPlugin {
 		}
 	};
 }
-
-module.exports = StringReplacerPlugin; // export as default
-module.exports.StringReplacerPlugin = StringReplacerPlugin; // export named
+export default StringReplacerPlugin;

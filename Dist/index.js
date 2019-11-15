@@ -334,6 +334,6 @@ class StringReplacerPlugin {
     }
     ;
 }
-module.exports = StringReplacerPlugin; // export as default
-module.exports.StringReplacerPlugin = StringReplacerPlugin; // export named
+exports.StringReplacerPlugin = StringReplacerPlugin;
+exports.default = StringReplacerPlugin;
 //# sourceMappingURL=index.js.map
