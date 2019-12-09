@@ -3,10 +3,9 @@ export class Options {
 		Object.assign(this, initialProps);
 	}
 
-	logFileMatches? = false;
-	logFileMatchContents? = false;
-	logAroundPatternMatches? = null as number;
+	logAroundPatternMatches? = null as number; // todo: make a rule option
 
+	ruleBase?: Partial<Rule>;
 	rules = [] as Rule[];
 }
 
@@ -25,6 +24,8 @@ export class Rule {
 	fileInclude? = true as FileMatch;
 	fileExclude? = false as FileMatch;
 	fileMatchCount?: MatchCountTarget;
+	logFileMatches? = false;
+	logFileMatchContents? = false;
 
 	replacements? = [] as Replacement[];
 

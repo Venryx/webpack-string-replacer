@@ -63,17 +63,13 @@ webpackConfig.plugins.push(new WebpackStringReplacer({
 
 If you prefer viewing the raw TypeScript typings, you can open the "Source/Options.ts" file, or the "Dist/*.d.ts" files.
 
-#### `logFileMatches` - bool
-
-> If true, files matches by rules will have their paths logged for inspection.
-
-#### `logFileMatchContents` - number
-
-> If set, files matches by rules will have the first X characters of their contents logged for inspection.
-
 #### `logAroundPatternMatches` - number
 
 > If set, locations where patterns are matched will have X characters of the source code (before and after) logged for inspection. (not yet compatible with `optimizeChunkAssets`)
+
+#### `ruleBase` - Partial<Rule>
+
+> If set, each rule will "inherit" from the options specified here.
 
 #### `rules` - Rule[]
 
@@ -148,6 +144,14 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 > Based on total file matches. (if a file was in a non-matching chunk, it doesn't count toward this total)
 >
 > Examples: (see rules.X.chunkMatchCount)
+
+#### `rules.X.logFileMatches` - bool
+
+> If true, files matches by rule will have their paths logged for inspection.
+
+#### `rules.X.logFileMatchContents` - number
+
+> If set, files matches by rule will have the first X characters of their contents logged for inspection.
 
 #### `rules.X.replacements` - Replacement[]
 

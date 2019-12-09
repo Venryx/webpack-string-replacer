@@ -2,9 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class Options {
     constructor(initialProps) {
-        this.logFileMatches = false;
-        this.logFileMatchContents = false;
-        this.logAroundPatternMatches = null;
+        this.logAroundPatternMatches = null; // todo: make a rule option
         this.rules = [];
         Object.assign(this, initialProps);
     }
@@ -20,6 +18,8 @@ class Rule {
         this.outputFileExclude = false;
         this.fileInclude = true;
         this.fileExclude = false;
+        this.logFileMatches = false;
+        this.logFileMatchContents = false;
         this.replacements = [];
     }
 }

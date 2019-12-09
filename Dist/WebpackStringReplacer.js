@@ -26,8 +26,8 @@ class WebpackStringReplacer {
     constructor(options) {
         WebpackStringReplacer["instance"] = this;
         for (let [index, rule] of options.rules.entries()) {
-            // normalize rule props
-            rule = Object.assign(new Options_1.Rule(), rule);
+            // apply options from Rule-class default-values, and ruleBase
+            rule = Object.assign(new Options_1.Rule(), options.ruleBase, rule);
             options.rules[index] = rule;
         }
         this.options = options;
@@ -174,10 +174,10 @@ class WebpackStringReplacer {
                                     continue; // if output-file excluded by rule, doesn't match
                                 rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex]++;
                                 const originalSource = compilation.assets[file];
-                                if (this.options.logFileMatches || this.options.logFileMatchContents) {
+                                if (rule.logFileMatches || rule.logFileMatchContents) {
                                     console.log(`Found output-file match. @rule(${ruleIndex}) @file:` + file);
-                                    if (this.options.logFileMatchContents) {
-                                        console.log(`Contents:\n==========\n${originalSource.source().slice(0, this.options.logFileMatchContents)}\n==========\n`);
+                                    if (rule.logFileMatchContents) {
+                                        console.log(`Contents:\n==========\n${originalSource.source().slice(0, rule.logFileMatchContents)}\n==========\n`);
                                     }
                                 }
                                 let newSource;
@@ -243,7 +243,7 @@ class WebpackStringReplacer {
         const fileIncludeFuncs = Utils_1.ToArray(rule.fileInclude).map(Utils_1.FileMatchToFunction);
         const fileExcludeFuncs = Utils_1.ToArray(rule.fileExclude).map(Utils_1.FileMatchToFunction);
         const matchingModules = modules.filter(mod => {
-            let path = mod._source; // path is absolute
+            let path = mod["resource"]; // path is absolute
             if (path == null)
                 return false; // if module has no resource, doesn't match
             path = path.replace(/\\/g, "/"); // normalize path to have "/" separators
@@ -253,10 +253,10 @@ class WebpackStringReplacer {
                 return false; // if module not included by rule, doesn't match
             if (Utils_1.SomeFuncsMatch(fileExcludeFuncs, path))
                 return false; // if module excluded by rule, doesn't match
-            if (this.options.logFileMatches || this.options.logFileMatchContents) {
+            if (rule.logFileMatches || rule.logFileMatchContents) {
                 console.log(`Found file match. @rule(${ruleIndex}) @path:` + path);
-                if (this.options.logFileMatchContents) {
-                    console.log(`Contents:\n==========\n${mod._source._value.slice(0, this.options.logFileMatchContents)}\n==========\n`);
+                if (rule.logFileMatchContents) {
+                    console.log(`Contents:\n==========\n${mod._source._value.slice(0, rule.logFileMatchContents)}\n==========\n`);
                 }
             }
             return true;

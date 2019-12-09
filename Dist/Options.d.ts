@@ -1,8 +1,7 @@
 export declare class Options {
     constructor(initialProps: Partial<Options>);
-    logFileMatches?: boolean;
-    logFileMatchContents?: boolean;
     logAroundPatternMatches?: number;
+    ruleBase?: Partial<Rule>;
     rules: Rule[];
 }
 export declare type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";
@@ -17,6 +16,8 @@ export declare class Rule {
     fileInclude?: FileMatch;
     fileExclude?: FileMatch;
     fileMatchCount?: MatchCountTarget;
+    logFileMatches?: boolean;
+    logFileMatchContents?: boolean;
     replacements?: Replacement[];
     compilationIsMatch_perCompilation?: boolean[];
     fileOrOutputFileMatchCounts_perCompilation?: number[];
