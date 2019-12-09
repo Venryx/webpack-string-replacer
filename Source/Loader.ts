@@ -12,7 +12,8 @@ module.exports = function(source, map, meta) {
 	try {
 		//var callback = this.async();
 
-		source = WebpackStringReplacer.instance.SourceTransformer_CallFromLoader(source, this.query);
+		const plugin = WebpackStringReplacer.instance as import("./WebpackStringReplacer").WebpackStringReplacer;
+		source = plugin.SourceTransformer_CallFromLoader(source, this.query);
 
 		// if this module has the html-webpack-plugin as one of its loaders, remove/hide ourself from the loaders list, as otherwise it refuses to run, causing build errors
 		const htmlLoader = this.loaders.find(a=>NormalizePath(a.path).includes("/html-webpack-plugin/"));

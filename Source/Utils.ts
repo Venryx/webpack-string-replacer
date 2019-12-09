@@ -1,3 +1,5 @@
+import webpack = require("webpack");
+
 export function IsBool(any): any is boolean { return typeof any === "boolean"; }
 export function IsNumber(any): any is number { return typeof any === "number"; }
 export function IsString(any): any is string { return typeof any === "string"; }
@@ -75,4 +77,25 @@ export function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
 		return satisfiesMin && satisfiesMax;
 	}
 	throw new Error("Match-count target must either be a number (for exact target), or a {min, max} object (for range).");
+}
+
+export function Slice_NumberOrBool(str: string, length_orTrueForRest: number | boolean) {
+	if (length_orTrueForRest == false) return "";
+	if (length_orTrueForRest == true) return str;
+	return str.slice(0, length_orTrueForRest);
+}
+
+// module helpers (due to @types/webpack being outdated)
+// ==========
+
+export function GetModuleSource(mod: webpack.compilation.Module) {
+	return mod._source._value;
+}
+export function SetModuleSource(mod: webpack.compilation.Module, newSource: string) {
+	mod._source._value = newSource;
+}
+
+// path is absolute
+export function GetModuleResourcePath(mod: webpack.compilation.Module, loaderContext?: webpack.loader.LoaderContext) {
+	return mod["resource"] || mod["request"] || loaderContext?.resourcePath || loaderContext?.resource;
 }

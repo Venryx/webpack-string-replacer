@@ -95,4 +95,28 @@ function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
     throw new Error("Match-count target must either be a number (for exact target), or a {min, max} object (for range).");
 }
 exports.IsMatchCountCorrect = IsMatchCountCorrect;
+function Slice_NumberOrBool(str, length_orTrueForRest) {
+    if (length_orTrueForRest == false)
+        return "";
+    if (length_orTrueForRest == true)
+        return str;
+    return str.slice(0, length_orTrueForRest);
+}
+exports.Slice_NumberOrBool = Slice_NumberOrBool;
+// module helpers (due to @types/webpack being outdated)
+// ==========
+function GetModuleSource(mod) {
+    return mod._source._value;
+}
+exports.GetModuleSource = GetModuleSource;
+function SetModuleSource(mod, newSource) {
+    mod._source._value = newSource;
+}
+exports.SetModuleSource = SetModuleSource;
+// path is absolute
+function GetModuleResourcePath(mod, loaderContext) {
+    var _a, _b;
+    return mod["resource"] || mod["request"] || ((_a = loaderContext) === null || _a === void 0 ? void 0 : _a.resourcePath) || ((_b = loaderContext) === null || _b === void 0 ? void 0 : _b.resource);
+}
+exports.GetModuleResourcePath = GetModuleResourcePath;
 //# sourceMappingURL=Utils.js.map

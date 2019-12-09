@@ -3,9 +3,8 @@ export class Options {
 		Object.assign(this, initialProps);
 	}
 
-	logAroundPatternMatches? = null as number; // todo: make a rule option
-
 	ruleBase?: Partial<Rule>;
+	//replacementBase?: Partial<Replacement>;
 	rules = [] as Rule[];
 }
 
@@ -25,22 +24,16 @@ export class Rule {
 	fileExclude? = false as FileMatch;
 	fileMatchCount?: MatchCountTarget;
 	logFileMatches? = false;
-	logFileMatchContents? = false;
+	logFileMatchContents?: boolean | number = false;
 
 	replacements? = [] as Replacement[];
-
-	// internal metadata
-	compilationIsMatch_perCompilation?: boolean[];
-	fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 
 export class Replacement {
 	pattern: string | RegExp;
 	patternMatchCount?: MatchCountTarget;
+	logAroundPatternMatches? = null as number;
 	replacement: string | ((substring: string, ...args: (string | number)[])=>string);
-
-	// internal metadata
-	fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 
 export type ChunkMatch = any;

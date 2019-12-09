@@ -63,10 +63,6 @@ webpackConfig.plugins.push(new WebpackStringReplacer({
 
 If you prefer viewing the raw TypeScript typings, you can open the "Source/Options.ts" file, or the "Dist/*.d.ts" files.
 
-#### `logAroundPatternMatches` - number
-
-> If set, locations where patterns are matched will have X characters of the source code (before and after) logged for inspection. (not yet compatible with `optimizeChunkAssets`)
-
 #### `ruleBase` - Partial<Rule>
 
 > If set, each rule will "inherit" from the options specified here.
@@ -125,6 +121,8 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 #### `rules.X.outputFileMatchCount` - number | {min?: number, max?: number}
 
+> Based on the number of output-file matches, in chunks not already avoided by the chunk include/exclude filters. (condition must be met for at least one compilation)
+>
 > Examples: (see rules.X.chunkMatchCount)
 
 #### `rules.X.fileInclude` - bool | string | regex | function - or array of these
@@ -141,7 +139,7 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 #### `rules.X.fileMatchCount` - number | {min?: number, max?: number}
 
-> Based on total file matches. (if a file was in a non-matching chunk, it doesn't count toward this total)
+> Based on the number of file matches, in chunks not already avoided by the chunk include/exclude filters. (condition must be met for at least one compilation)
 >
 > Examples: (see rules.X.chunkMatchCount)
 
@@ -149,9 +147,9 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 > If true, files matches by rule will have their paths logged for inspection.
 
-#### `rules.X.logFileMatchContents` - number
+#### `rules.X.logFileMatchContents` - bool | number
 
-> If set, files matches by rule will have the first X characters of their contents logged for inspection.
+> If set, files matches by rule will have their contents logged for inspection. (if true: the whole file; if number: the first X characters)
 
 #### `rules.X.replacements` - Replacement[]
 
@@ -163,9 +161,13 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 #### `rules.X.replacements.X.patternMatchCount` - number | {min?: number, max?: number}
 
-> Based on total pattern matches. (if a pattern was in a non-matching file or chunk, it doesn't count toward this total)
+> Based on the number of pattern matches, in chunks/files not already avoided by their respective include/exclude filters. (condition must be met for at least one compilation)
 >
 > Examples: (see rules.X.chunkMatchCount)
+
+#### `logAroundPatternMatches` - number
+
+> If set, locations where patterns are matched will have X characters of the source code (before and after) logged for inspection. (not yet compatible with `optimizeChunkAssets`)
 
 #### `rules.X.replacements.X.replacement`
 

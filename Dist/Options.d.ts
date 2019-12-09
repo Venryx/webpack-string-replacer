@@ -1,6 +1,5 @@
 export declare class Options {
     constructor(initialProps: Partial<Options>);
-    logAroundPatternMatches?: number;
     ruleBase?: Partial<Rule>;
     rules: Rule[];
 }
@@ -17,16 +16,14 @@ export declare class Rule {
     fileExclude?: FileMatch;
     fileMatchCount?: MatchCountTarget;
     logFileMatches?: boolean;
-    logFileMatchContents?: boolean;
+    logFileMatchContents?: boolean | number;
     replacements?: Replacement[];
-    compilationIsMatch_perCompilation?: boolean[];
-    fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 export declare class Replacement {
     pattern: string | RegExp;
     patternMatchCount?: MatchCountTarget;
+    logAroundPatternMatches?: number;
     replacement: string | ((substring: string, ...args: (string | number)[]) => string);
-    fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 export declare type ChunkMatch = any;
 export declare type FileMatch = FileMatch_Single | FileMatch_Single[];

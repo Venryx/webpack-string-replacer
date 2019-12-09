@@ -1,9 +1,9 @@
 // @ts-check_disabled
-import path from "path";
-import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct} from "./Utils";
-import {Options, ApplyStage, Rule} from "./Options";
-import {ReplaceSource} from "webpack-sources";
-import webpack from "webpack";
+import * as path from "path";
+import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct, GetModuleSource, SetModuleSource, Slice_NumberOrBool, GetModuleResourcePath} from "./Utils";
+import {Options, ApplyStage, Rule, Replacement} from "./Options";
+import {ReplaceSource, Source} from "webpack-sources";
+import * as webpack from "webpack";
 
 export type Compilation = webpack.compilation.Compilation;
 export type Module = webpack.compilation.Module;
@@ -12,6 +12,36 @@ export class CompilationRun {
 	compilations = [] as Compilation[];
 	//chunkEntryPaths_perChunk = [] as number[];
 	compilationsCompleted = 0;
+
+	ruleMetas = new Map<Rule, RuleMeta>();
+	GetRuleMeta(rule: Rule, compilationIndex: number) {
+		if (!this.ruleMetas.has(rule)) this.ruleMetas.set(rule, new RuleMeta());
+		let ruleMeta = this.ruleMetas.get(rule);
+		if (!ruleMeta.compilationMeta.has(compilationIndex)) ruleMeta.compilationMeta.set(compilationIndex, new RulePlusCompilationMeta());
+		return ruleMeta.compilationMeta.get(compilationIndex);
+	}
+	replacementMetas = new Map<Replacement, ReplacementMeta>();
+	GetReplacementMeta(replacement: Replacement, compilationIndex: number) {
+		if (!this.replacementMetas.has(replacement)) this.replacementMetas.set(replacement, new ReplacementMeta());
+		let replacementMeta = this.replacementMetas.get(replacement);
+		if (!replacementMeta.compilationMeta.has(compilationIndex)) replacementMeta.compilationMeta.set(compilationIndex, new ReplacementPlusCompilationMeta());
+		return replacementMeta.compilationMeta.get(compilationIndex);
+	}
+}
+export class RuleMeta {
+	compilationMeta = new Map<number, RulePlusCompilationMeta>();
+}
+export class ReplacementMeta {
+	compilationMeta = new Map<number, ReplacementPlusCompilationMeta>();
+}
+export class RulePlusCompilationMeta {
+	//compilationIsMatch = false;
+	compilationIsMatch = null;
+	outputFileMatchCount = 0;
+	fileMatchCount = 0;
+}
+export class ReplacementPlusCompilationMeta {
+	patternMatchCount = 0;
 }
 
 /*
@@ -43,52 +73,32 @@ export class WebpackStringReplacer {
 	// The "compilation run state" below helps keep track of those executions, so we can figure out the chunk-count. (and thus when the compilation-run is fully over)
 	ResetCurrentRun() {
 		console.log("Resetting");
-		this.currentRun = {
-			compilations: [],
-			//chunkEntryPaths_perChunk: [],
-			//chunkMeta: [],
-			compilationsCompleted: 0,
-		};
-		// just store on objects under options
-		for (let rule of this.options.rules) {
-			rule.compilationIsMatch_perCompilation = [];
-			rule.fileOrOutputFileMatchCounts_perCompilation = [];
-			for (let replacement of rule.replacements) {
-				replacement.fileOrOutputFileMatchCounts_perCompilation = [];
-			}
-		}
-	}
-	InitCompilationMetaForCompilationIndex(compilationIndex: number) {
-		//this.currentRun.chunkMeta[compilationIndex] = {}
-		for (let rule of this.options.rules) {
-			rule.compilationIsMatch_perCompilation[compilationIndex] = null;
-			rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = 0;
-			for (let replacement of rule.replacements) {
-				replacement.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = 0;
-			}
-		}
+		this.currentRun = new CompilationRun();
 	}
 
 	// now set up the WebpackStringReplacer.instance.SourceTransformer_CallFromLoader function (for the loader to call)
-	SourceTransformer_CallFromLoader(source: string, options) {
+	SourceTransformer_CallFromLoader(source: string, options: {rulesToApply_indexes: number[], compilationIndex: number, modulePath: string}) {
 		// some loaders botch the options-passing, so re-parse it if needed
 		if (typeof options == "string") {
+			let optionsStr = options as string;
 			try {
-				let json = options.slice(options.indexOf("{"), options.lastIndexOf("}") + 1);
+				let json = optionsStr.slice(optionsStr.indexOf("{"), optionsStr.lastIndexOf("}") + 1);
 				options = JSON.parse(json);
 			} catch (ex) {
 				//console.error(`
 				throw new Error(`
 					The options object for webpack-plugin-string-replace was mangled by an earlier-running loader. Please update/remove/fix the other loader.
-					Options string: ${options}
+					Options string: ${optionsStr}
 					Error: ${ex}
 				`.trim());
 			}
 		}
-		let {rulesToApply_indexes, chunkIndex} = options;
+
+		//console.log("Loader called with:", source);
+		const {rulesToApply_indexes, compilationIndex, modulePath} = options;
 		const rulesToApply = rulesToApply_indexes.map(index=>this.options.rules[index]);
 		for (let rule of rulesToApply) {
-			source = this.ApplyRuleAsSourceTransform(rule, source, chunkIndex);
+			source = this.ApplyRuleAsSourceTransform(rule, source, compilationIndex, modulePath);
 		}
 		return source;
 	}
@@ -100,6 +110,9 @@ export class WebpackStringReplacer {
 		}
 		return this.stages_cache;
 	}
+	GetRulesForStage(stage: ApplyStage) {
+		return this.options.rules.filter(a=>a.applyStage == stage);
+	}
 
 	apply(compiler) {
 		const opt = this.options;
@@ -107,44 +120,48 @@ export class WebpackStringReplacer {
 		compiler.hooks.compilation.tap(packageName, (compilation: Compilation, compilationParams) => {
 			this.currentRun.compilations.push(compilation);
 			const compilationIndex = this.currentRun.compilations.length - 1;
-			this.InitCompilationMetaForCompilationIndex(compilationIndex);
 
-			// stage 1 (if apply-stage early/mid): insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
-			if (this.Stages.includes("loader") || this.Stages.includes("optimizeModules")) {
+			// stage 1 (if apply-stage early): insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
+			if (this.Stages.includes("loader")) {
 				compilation.hooks.normalModuleLoader.tap(packageName, (loaderContext: webpack.loader.LoaderContext, mod)=> {
 					if (loaderContext._compilation != compilation) throw new Error("LoaderContext and chunk out of sync.");
 
-					let rulesToApply = this.options.rules.filter(rule=>this.PrepareToApplyRuleToModules(rule, [mod], compilation, compilationIndex) != null);
+					let rulesToApply = this.GetRulesForStage("loader").filter(rule=> {
+						return this.GetModulesWhereRuleShouldBeApplied(rule, [mod], compilation, compilationIndex).matchingModules.length == 1;
+					});
 					if (rulesToApply.length == 0) return;
 					const rulesToApply_indexes = rulesToApply.map(rule=>this.options.rules.indexOf(rule));
-					//if (mod["loaders"] == null) return; // if no other loader is set to load it, we probably shouldn't either
-					if (loaderContext.loaders == null) return; // if no other loader is set to load it, we probably shouldn't either
+					//if (loaderContext.loaders == null) { // @types/webpack says it's on loaderContext, but runtime says no; types must be outdated
+					let modulePath = GetModuleResourcePath(mod);
+					if (mod["loaders"] == null) {
+						//mod["loaders"] = [];
+						console.log(`LoaderStage: Ignoring file at path "${modulePath}", since it has no other loaders. (intercepting may break some other plugins, eg. html-webpack-plugin)`);
+						return;
+					}
 
-					//console.log("Setting up loader:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
-					//mod["loaders"].push({
-					loaderContext.loaders.push({
-					//mod.loaders.unshift({
+					//console.log("Setting up loader:", Object.keys(mod).join(","), ";", Object.keys(loaderContext).join(","), ";", mod["loaders"].length);
+					//console.log(`Setting up loader. @modPath(${modulePath}}`);
+					//loaderContext.loaders.push({ // @types/webpack says it's on loaderContext, but runtime says no; types must be outdated
+					//mod["loaders"].unshift({
+					mod["loaders"].push({
 						loader: path.resolve(__dirname, 'Loader.js'),
-						options: {rulesToApply_indexes, compilationIndex},
+						options: {rulesToApply_indexes, compilationIndex, modulePath},
 					});
 				});
 			}
 
-			// stage 2 (if apply-stage early/mid): wait for last chunk to be done optimizing-modules, apply rules (if apply-stage is optimizeModules), then run the VerifyMatchCounts function
-			if (this.Stages.includes("loader") || this.Stages.includes("optimizeModules")) {
+			// stage 2 (if apply-stage mid): wait for last chunk to be done optimizing-modules, then apply rules
+			if (this.Stages.includes("optimizeModules")) {
 				compilation.hooks.optimizeModules.tap(packageName, modules=> {
-					if (this.Stages.includes("optimizeModules")) {
-						/*let chunk = this.currentRun.chunks.find(a=>a.modules == modules);
-						if (chunk == null) throw new Error("Failed to find chunk for module-list in OnOptimizeModules.");
-						this.currentRun.optimizeModules_chunksReached.push(chunk);
-						let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*/
-						
-						for (let rule of this.options.rules) {
-							let {matchingModules} = this.PrepareToApplyRuleToModules(rule, modules, compilation, compilationIndex);
-							for (let mod of matchingModules) {
-								const sourceText = mod._source._value;
-								mod._source._value = this.ApplyRuleAsSourceTransform(rule, sourceText, compilationIndex);
-							}
+					/*let chunk = this.currentRun.chunks.find(a=>a.modules == modules);
+					if (chunk == null) throw new Error("Failed to find chunk for module-list in OnOptimizeModules.");
+					this.currentRun.optimizeModules_chunksReached.push(chunk);
+					let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*/
+					
+					for (let rule of this.GetRulesForStage("optimizeModules")) {
+						let {matchingModules} = this.GetModulesWhereRuleShouldBeApplied(rule, modules, compilation, compilationIndex);
+						for (let mod of matchingModules) {
+							SetModuleSource(mod, this.ApplyRuleAsSourceTransform(rule, GetModuleSource(mod), compilationIndex, GetModuleResourcePath(mod)));
 						}
 					}
 				});
@@ -154,7 +171,8 @@ export class WebpackStringReplacer {
 			if (this.Stages.includes("optimizeChunkAssets")) {
 				compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
 					//console.log("Chunks files:", chunks);
-					for (let [ruleIndex, rule] of opt.rules.entries()) {
+					for (let [ruleIndex, rule] of this.GetRulesForStage("optimizeChunkAssets").entries()) {
+						let ruleMeta = this.currentRun.GetRuleMeta(rule, compilationIndex);
 						const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
 						const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
 						const outputFileIncludeFuncs = ToArray(rule.outputFileInclude).map(FileMatchToFunction);
@@ -173,29 +191,30 @@ export class WebpackStringReplacer {
 								index: chunkIndex,
 								definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
 							};
-							rule.compilationIsMatch_perCompilation[compilationIndex] = false;
+							ruleMeta.compilationIsMatch = false;
 							if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) continue; // if chunk not included by rule, doesn't match
 							if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) continue; // if chunk excluded by rule, doesn't match
-							rule.compilationIsMatch_perCompilation[compilationIndex] = true;
+							ruleMeta.compilationIsMatch = true;
 		
 							//const matchingFiles = chunk.files.filter(file=> {})
 							for (let [fileIndex, file] of chunk.files.entries()) {
 								if (!SomeFuncsMatch(outputFileIncludeFuncs, file)) continue; // if output-file not included by rule, doesn't match
 								if (SomeFuncsMatch(outputFileExcludeFuncs, file)) continue; // if output-file excluded by rule, doesn't match
-								rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex]++;
+								ruleMeta.outputFileMatchCount++;
 
-								const originalSource = compilation.assets[file];
+								const originalSource = compilation.assets[file] as Source;
 								if (rule.logFileMatches || rule.logFileMatchContents) {
 									console.log(`Found output-file match. @rule(${ruleIndex}) @file:` + file);
 									if (rule.logFileMatchContents) {
-										console.log(`Contents:\n==========\n${originalSource.source().slice(0, rule.logFileMatchContents)}\n==========\n`);
+										console.log(`Contents:\n==========\n${Slice_NumberOrBool(originalSource.source(), rule.logFileMatchContents)}\n==========\n`);
 									}
 								}
 		
 								let newSource;
-								for (let entry of rule.replacements) {
-									if (!IsString(entry.pattern)) throw new Error("Only string patterns are allowed for optimizeChunkAssets stage currently. (will fix later)");
-									let patternStr = entry.pattern as string;
+								for (let replacement of rule.replacements) {
+									let replacementMeta = this.currentRun.GetReplacementMeta(replacement, compilationIndex);
+									if (!IsString(replacement.pattern)) throw new Error("Only string patterns are allowed for optimizeChunkAssets stage currently. (will fix later)");
+									let patternStr = replacement.pattern as string;
 									const matchIndexes = GetAllIndexes(originalSource.source(), patternStr);
 									if (!matchIndexes.length) continue;
 									if (!newSource) {
@@ -205,9 +224,9 @@ export class WebpackStringReplacer {
 									matchIndexes.forEach((startPos) => {
 										const endPos = startPos + patternStr.length - 1;
 										//console.log("Replacing;", startPos, ";", endPos);
-										newSource.replace(startPos, endPos, entry.replacement);
+										newSource.replace(startPos, endPos, replacement.replacement);
 									});
-									entry.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] += matchIndexes.length;
+									replacementMeta.patternMatchCount += matchIndexes.length;
 								}
 		
 								if (newSource) {
@@ -239,12 +258,11 @@ export class WebpackStringReplacer {
 		});
 	}
 
-	PrepareToApplyRuleToModules(rule: Rule, modules: Module[], compilation: Compilation, compilationIndex: number) {
-		const ruleIndex = this.options.rules.indexOf(rule);
+	GetModulesWhereRuleShouldBeApplied(rule: Rule, modules: Module[], compilation: Compilation, compilationIndex: number) {
+		const ruleMeta = this.currentRun.GetRuleMeta(rule, compilationIndex);
 		
 		// todo: fix that we are treating compilations as if they were chunks!
-		let chunkIsMatch = rule.compilationIsMatch_perCompilation[compilationIndex];
-		if (chunkIsMatch == null) {
+		if (ruleMeta.compilationIsMatch == null) {
 			const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
 			const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
 			const chunkInfo = {
@@ -252,56 +270,66 @@ export class WebpackStringReplacer {
 				definedChunkNames: [compilation["name"]].concat((compilation.entries || []).map(a=>a.name)),
 			};
 			
-			chunkIsMatch = SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);
-			rule.compilationIsMatch_perCompilation[compilationIndex] = chunkIsMatch;
+			ruleMeta.compilationIsMatch = SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);
 		}
-		if (!chunkIsMatch) return null;
+		if (!ruleMeta.compilationIsMatch) return null;
 
 		const fileIncludeFuncs = ToArray(rule.fileInclude).map(FileMatchToFunction);
 		const fileExcludeFuncs = ToArray(rule.fileExclude).map(FileMatchToFunction);
 		const matchingModules = modules.filter(mod=> {
-			let path = mod["resource"]; // path is absolute
-			if (path == null) return false; // if module has no resource, doesn't match
-			path = path.replace(/\\/g, "/") // normalize path to have "/" separators
+			let modulePath = GetModuleResourcePath(mod);
+			if (modulePath == null) return false; // if module has no resource, doesn't match
+			modulePath = modulePath.replace(/\\/g, "/") // normalize path to have "/" separators
 			/*if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) return false; // if chunk not included by rule, doesn't match
 			if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) return false; // if chunk excluded by rule, doesn't match*/
-			if (!SomeFuncsMatch(fileIncludeFuncs, path)) return false; // if module not included by rule, doesn't match
-			if (SomeFuncsMatch(fileExcludeFuncs, path)) return false; // if module excluded by rule, doesn't match
-			
-			if (rule.logFileMatches || rule.logFileMatchContents) {
-				console.log(`Found file match. @rule(${ruleIndex}) @path:` + path);
-				if (rule.logFileMatchContents) {
-					console.log(`Contents:\n==========\n${mod._source._value.slice(0, rule.logFileMatchContents)}\n==========\n`);
-				}
-			}
+			if (!SomeFuncsMatch(fileIncludeFuncs, modulePath)) return false; // if module not included by rule, doesn't match
+			if (SomeFuncsMatch(fileExcludeFuncs, modulePath)) return false; // if module excluded by rule, doesn't match
+
+			/*if (rule.logFileMatches || rule.logFileMatchContents) {
+				console.log(`Found file match. @rule(${this.options.rules.indexOf(rule)}) @path:` + modulePath);
+			}*/
+
 			return true;
 		});
-		rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = matchingModules.length;
+		// for a given rule, this function gets called for every module (if applying at loader phase), thus we have to increment, not set
+		ruleMeta.fileMatchCount += matchingModules.length;
 
 		return {matchingModules};
 	}
-	ApplyRuleAsSourceTransform(rule: Rule, moduleSource: string, compilationIndex: number) {
-		//const ruleIndex = this.options.rules.indexOf(rule);
+	ApplyRuleAsSourceTransform(rule: Rule, moduleSource: string, compilationIndex: number, modulePath: string) {
+		// do the logging here (instead of PrepareToApplyRuleToModules), because if using apply-stage "loader", the source isn't accessible when Prepare... is called
+		if (rule.logFileMatches || rule.logFileMatchContents) {
+			console.log(`Found file match. @rule(${this.options.rules.indexOf(rule)}) @path:` + modulePath);
+			if (rule.logFileMatchContents) {
+				//console.dir(mod);
+				//console.log(`Contents:\n==========\n${GetModuleSource(mod).slice(0, rule.logFileMatchContents)}\n==========\n`);
+				console.log(`Contents:\n==========\n${Slice_NumberOrBool(moduleSource, rule.logFileMatchContents)}\n==========\n`);
+			}
+		}
 
 		let result = moduleSource;
 		//console.log("Length:" + moduleSource.length);
 		for (let replacement of rule.replacements) {
+			let replacementMeta = this.currentRun.GetReplacementMeta(replacement, compilationIndex);
 			let patternMatchCount = 0;
 			let pattern_asRegex = ToRegex(replacement.pattern);
-			if (!pattern_asRegex.global) throw new Error("Regex must have the 'g' flag added. (otherwise it will only have one match!)");
+			if (!pattern_asRegex.global) {
+				//throw new Error("Regex must have the 'g' flag added. (otherwise it will only have one match!)");
+				pattern_asRegex = new RegExp(pattern_asRegex.source, "g" + pattern_asRegex.flags);
+			}
 
-			if (this.options.logAroundPatternMatches != null) {
+			if (replacement.logAroundPatternMatches != null) {
 				let matches = [];
 				let match;
 				while (match = pattern_asRegex.exec(result)) {
 					//if (matches.length && match.index == matches[matches.length - 1].index) break;
 					matches.push(match);
 				}
-				pattern_asRegex.lastIndex = 0;
+				pattern_asRegex.lastIndex = 0; // reset, so that result.replace call succeeds
 				for (let match of matches) {
 					let sectionToLog = result.slice(
-						Math.max(0, match.index - this.options.logAroundPatternMatches),
-						Math.min(result.length, match.index + match[0].length + this.options.logAroundPatternMatches)
+						Math.max(0, match.index - replacement.logAroundPatternMatches),
+						Math.min(result.length, match.index + match[0].length + replacement.logAroundPatternMatches)
 					);
 					console.log(`Logging text around pattern match:\n==========\n${sectionToLog}\n==========\n`);
 				}
@@ -315,7 +343,7 @@ export class WebpackStringReplacer {
 			});
 			//replacement.fileMatchCounts_perChunk[chunkIndex] = (replacement.fileMatchCounts_perChunk[chunkIndex]|0) + patternMatchCount;
 			//this.currentRun.chunkMeta[chunkIndex].ruleMeta[ruleIndex].replacementMeta[replacementIndex].
-			replacement.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] += patternMatchCount;
+			replacementMeta.patternMatchCount += patternMatchCount;
 		}
 		return result;
 	}
@@ -323,37 +351,49 @@ export class WebpackStringReplacer {
 	VerifyMatchCounts() {
 		console.log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
 		for (let [ruleIndex, rule] of this.options.rules.entries()) {
-			let chunksMatching = rule.compilationIsMatch_perCompilation.filter(isMatch=>isMatch);
-			if (!IsMatchCountCorrect(chunksMatching.length, rule.chunkMatchCount)) {
+			let ruleMeta = this.currentRun.ruleMetas.get(rule) || new RuleMeta();
+			let ruleCompilationMetas = this.currentRun.compilations.map((c, index)=>ruleMeta.compilationMeta.get(index) || new RulePlusCompilationMeta());
+
+			if (!IsMatchCountCorrect(ruleCompilationMetas.filter(a=>a.compilationIsMatch).length, rule.chunkMatchCount)) {
 				throw new Error(`
 					A rule did not have as many chunk-matches as it should have.
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Is-match (per chunk): [${rule.compilationIsMatch_perCompilation}] @target(${JSON.stringify(rule.chunkMatchCount)})
+					Chunk-is-match (per compilation): [${ruleCompilationMetas.map(a=>a.compilationIsMatch)}] @target(${JSON.stringify(rule.chunkMatchCount)})
 
 					Ensure you have the correct versions for any npm modules involved.
 				`);
 			}
 
-			const lateStage = rule.applyStage == "optimizeChunkAssets";
-			let chunksWithCorrectRuleMatchCount = rule.fileOrOutputFileMatchCounts_perCompilation.filter(count=>IsMatchCountCorrect(count, rule[lateStage ? "outputFileMatchCount" : "fileMatchCount"]));
-			if (chunksWithCorrectRuleMatchCount.length == 0) {
+			if (!ruleCompilationMetas.find(a=>IsMatchCountCorrect(a.outputFileMatchCount, rule.outputFileMatchCount))) {
 				throw new Error(`
-					A rule did not have as many ${lateStage ? "output-" : ""}file-matches as it should have (in any chunk).
+					A rule did not have as many output-file-matches as it should have (in any compilation).
+					Rule: #${ruleIndex} @include(${rule.outputFileInclude}) @exclude(${rule.outputFileExclude})
+					Match counts (per compilation): [${ruleCompilationMetas.map(a=>a.outputFileMatchCount)}] @target(${JSON.stringify(rule.outputFileMatchCount)})
+
+					Ensure you have the correct versions for any npm modules involved.
+				`);
+			}
+
+			if (!ruleCompilationMetas.find(a=>IsMatchCountCorrect(a.fileMatchCount, rule.fileMatchCount))) {
+				throw new Error(`
+					A rule did not have as many file-matches as it should have (in any compilation).
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Match counts (per chunk): [${rule.fileOrOutputFileMatchCounts_perCompilation}] @target(${JSON.stringify(rule.fileMatchCount)})
+					Match counts (per compilation): [${ruleCompilationMetas.map(a=>a.fileMatchCount)}] @target(${JSON.stringify(rule.fileMatchCount)})
 
 					Ensure you have the correct versions for any npm modules involved.
 				`);
 			}
 			
 			for (let [index, replacement] of rule.replacements.entries()) {
-				let chunksWithCorrectReplacementMatchCount = replacement.fileOrOutputFileMatchCounts_perCompilation.filter(count=>IsMatchCountCorrect(count, replacement.patternMatchCount));
-				if (chunksWithCorrectReplacementMatchCount.length == 0) {
+				let replacementMeta = this.currentRun.replacementMetas.get(replacement) || new ReplacementMeta();
+				let replacementCompilationMetas = this.currentRun.compilations.map((c, index)=>replacementMeta.compilationMeta.get(index) || new ReplacementPlusCompilationMeta());
+
+				if (!replacementCompilationMetas.find(a=>IsMatchCountCorrect(a.patternMatchCount, replacement.patternMatchCount))) {
 					throw new Error(`
-						A string-replacement pattern did not have as many matches as it should have (in any chunk).
+						A string-replacement pattern did not have as many matches as it should have (in any compilation).
 						Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
 						Replacement: #${index} @pattern(${replacement.pattern})
-						Match counts (per chunk): [${replacement.fileOrOutputFileMatchCounts_perCompilation}] @target(${JSON.stringify(replacement.patternMatchCount)})
+						Match counts (per compilation): [${replacementCompilationMetas.map(a=>a.patternMatchCount)}] @target(${JSON.stringify(replacement.patternMatchCount)})
 
 						Ensure you have the correct versions for any npm modules involved.
 					`);

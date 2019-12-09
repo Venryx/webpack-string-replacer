@@ -2,7 +2,7 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class Options {
     constructor(initialProps) {
-        this.logAroundPatternMatches = null; // todo: make a rule option
+        //replacementBase?: Partial<Replacement>;
         this.rules = [];
         Object.assign(this, initialProps);
     }
@@ -25,6 +25,9 @@ class Rule {
 }
 exports.Rule = Rule;
 class Replacement {
+    constructor() {
+        this.logAroundPatternMatches = null;
+    }
 }
 exports.Replacement = Replacement;
 //# sourceMappingURL=Options.js.map
