@@ -2,7 +2,6 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class Options {
     constructor(initialProps) {
-        //replacementBase?: Partial<Replacement>;
         this.rules = [];
         Object.assign(this, initialProps);
     }

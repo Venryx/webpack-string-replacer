@@ -4,7 +4,7 @@ export class Options {
 	}
 
 	ruleBase?: Partial<Rule>;
-	//replacementBase?: Partial<Replacement>;
+	replacementBase?: Partial<Replacement>;
 	rules = [] as Rule[];
 }
 

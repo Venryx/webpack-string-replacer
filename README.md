@@ -67,6 +67,10 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 > If set, each rule will "inherit" from the options specified here.
 
+#### `replacementBase` - Partial<Replacement>
+
+> If set, each replacement entry will "inherit" from the options specified here.
+
 #### `rules` - Rule[]
 
 > Array of rules. (see below)

@@ -57,10 +57,14 @@ export class WebpackStringReplacer {
 	//static instance;
 	constructor(options: Options) {
 		WebpackStringReplacer["instance"] = this;
-		for (let [index, rule] of options.rules.entries()) {
+		for (let [ruleIndex, rule] of options.rules.entries()) {
 			// apply options from Rule-class default-values, and ruleBase
 			rule = Object.assign(new Rule(), options.ruleBase, rule);
-			options.rules[index] = rule;
+			for (let [replacementIndex, replacement] of rule.replacements.entries()) {
+				replacement = Object.assign(new Replacement(), options.replacementBase, replacement);
+				rule.replacements[replacementIndex] = replacement;
+			}
+			options.rules[ruleIndex] = rule;
 		}
 		this.options = options;
 	}

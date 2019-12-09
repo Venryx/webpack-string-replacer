@@ -1,6 +1,7 @@
 export declare class Options {
     constructor(initialProps: Partial<Options>);
     ruleBase?: Partial<Rule>;
+    replacementBase?: Partial<Replacement>;
     rules: Rule[];
 }
 export declare type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";
