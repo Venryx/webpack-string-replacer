@@ -1,0 +1,17 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "tsc watch",
+			"type": "shell",
+			"command": "./node_modules/.bin/tsc",
+			"args": ["--watch", "--project", "."],
+			"problemMatcher": "$tsc-watch",
+			"isBackground": true,
+			"group": {
+				"kind": "build",
+				"isDefault": true
+			}
+		},
+	]
+}
