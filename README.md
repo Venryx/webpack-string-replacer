@@ -121,7 +121,7 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 #### `rules.X.outputFileMatchCount` - number | {min?: number, max?: number}
 
-> Based on the number of output-file matches, in chunks not already avoided by the chunk include/exclude filters. (condition must be met for at least one compilation)
+> Checked against the number of output-file matches, in all (unignored) chunks. (condition must be met for at least one compilation)
 >
 > Examples: (see rules.X.chunkMatchCount)
 
@@ -139,7 +139,7 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 #### `rules.X.fileMatchCount` - number | {min?: number, max?: number}
 
-> Based on the number of file matches, in chunks not already avoided by the chunk include/exclude filters. (condition must be met for at least one compilation)
+> Checked against the number of file matches, in all (unignored) chunks. (condition must be met for at least one compilation)
 >
 > Examples: (see rules.X.chunkMatchCount)
 
@@ -161,7 +161,7 @@ If you prefer viewing the raw TypeScript typings, you can open the "Source/Optio
 
 #### `rules.X.replacements.X.patternMatchCount` - number | {min?: number, max?: number}
 
-> Based on the number of pattern matches, in chunks/files not already avoided by their respective include/exclude filters. (condition must be met for at least one compilation)
+> Checked against the number of pattern matches, in all (unignored) chunks/files within the compilation. (condition must be met for at least one compilation)
 >
 > Examples: (see rules.X.chunkMatchCount)
 
