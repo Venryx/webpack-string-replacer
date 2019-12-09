@@ -1,11 +1,11 @@
-export const IsBool = any => typeof any === "boolean";
-export const IsNumber = any => typeof any === "number";
-export const IsString = any => typeof any === "string";
-export const IsRegex = any => any instanceof RegExp;
-//export const IsArray = any => typeof any === "array";
-export const IsArray = any => Array.isArray(any);
-export const IsObject = any => typeof any === "object";
-export const IsFunction = any => typeof any === "function";
+export function IsBool(any): any is boolean { return typeof any === "boolean"; }
+export function IsNumber(any): any is number { return typeof any === "number"; }
+export function IsString(any): any is string { return typeof any === "string"; }
+export function IsRegex(any): any is RegExp { return any instanceof RegExp; }
+//export function IsArray(any) { return typeof any === "array"; }
+export function IsArray(any): any is Array<any> { return Array.isArray(any); }
+export function IsObject(any): any is Object { return typeof any === "object"; }
+export function IsFunction(any): any is Function { return typeof any === "function"; }
 
 export const ToArray = any => IsArray(any) ? any : (any != null ? [any] : []);
 export function EscapeForRegex(literalString) {

@@ -1,14 +1,21 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.IsBool = any => typeof any === "boolean";
-exports.IsNumber = any => typeof any === "number";
-exports.IsString = any => typeof any === "string";
-exports.IsRegex = any => any instanceof RegExp;
-//export const IsArray = any => typeof any === "array";
-exports.IsArray = any => Array.isArray(any);
-exports.IsObject = any => typeof any === "object";
-exports.IsFunction = any => typeof any === "function";
-exports.ToArray = any => exports.IsArray(any) ? any : (any != null ? [any] : []);
+function IsBool(any) { return typeof any === "boolean"; }
+exports.IsBool = IsBool;
+function IsNumber(any) { return typeof any === "number"; }
+exports.IsNumber = IsNumber;
+function IsString(any) { return typeof any === "string"; }
+exports.IsString = IsString;
+function IsRegex(any) { return any instanceof RegExp; }
+exports.IsRegex = IsRegex;
+//export function IsArray(any) { return typeof any === "array"; }
+function IsArray(any) { return Array.isArray(any); }
+exports.IsArray = IsArray;
+function IsObject(any) { return typeof any === "object"; }
+exports.IsObject = IsObject;
+function IsFunction(any) { return typeof any === "function"; }
+exports.IsFunction = IsFunction;
+exports.ToArray = any => IsArray(any) ? any : (any != null ? [any] : []);
 function EscapeForRegex(literalString) {
     //return literalString.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     // escape all control characters (probably more cautious than needed, but that's ok)
@@ -16,9 +23,9 @@ function EscapeForRegex(literalString) {
 }
 exports.EscapeForRegex = EscapeForRegex;
 function ToRegex(str) {
-    if (exports.IsRegex(str))
+    if (IsRegex(str))
         return str;
-    if (exports.IsString(str))
+    if (IsString(str))
         return new RegExp(EscapeForRegex(str), "g");
     throw new Error("Invalid pattern.");
 }
@@ -28,7 +35,7 @@ function Distinct(items) {
 }
 exports.Distinct = Distinct;
 function ChunkMatchToFunction(matchObj) {
-    if (exports.IsBool(matchObj))
+    if (IsBool(matchObj))
         return chunkInfo => matchObj;
     if (matchObj.name) {
         return chunkInfo => chunkInfo.definedChunkNames.filter(name => name == matchObj.name).length > 0;
@@ -54,13 +61,13 @@ function ChunkMatchToFunction(matchObj) {
 }
 exports.ChunkMatchToFunction = ChunkMatchToFunction;
 function FileMatchToFunction(val) {
-    if (exports.IsBool(val))
+    if (IsBool(val))
         return path => val;
-    if (exports.IsRegex(val))
+    if (IsRegex(val))
         return path => val.test(path);
-    if (exports.IsString(val))
+    if (IsString(val))
         return path => path.includes(val);
-    if (exports.IsFunction(val))
+    if (IsFunction(val))
         return path => val(path);
     throw new Error("Invalid file-match.");
 }
@@ -77,10 +84,10 @@ exports.SomeFuncsMatch = SomeFuncsMatch;
 function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
     if (targetMatchCountOrRange == null)
         return true;
-    if (exports.IsNumber(targetMatchCountOrRange)) {
+    if (IsNumber(targetMatchCountOrRange)) {
         return actualMatchCount == targetMatchCountOrRange;
     }
-    if (exports.IsObject(targetMatchCountOrRange)) {
+    if (IsObject(targetMatchCountOrRange)) {
         let satisfiesMin = actualMatchCount >= targetMatchCountOrRange.min || targetMatchCountOrRange.min == null;
         let satisfiesMax = actualMatchCount <= targetMatchCountOrRange.max || targetMatchCountOrRange.max == null;
         return satisfiesMin && satisfiesMax;

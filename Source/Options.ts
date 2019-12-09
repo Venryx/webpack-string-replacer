@@ -29,7 +29,7 @@ export class Rule {
 	replacements? = [] as Replacement[];
 
 	// internal metadata
-	chunkIsMatch_perCompilation?: boolean[];
+	compilationIsMatch_perCompilation?: boolean[];
 	fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 

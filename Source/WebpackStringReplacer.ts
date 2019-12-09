@@ -3,12 +3,24 @@ import path from "path";
 import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct} from "./Utils";
 import {Options, ApplyStage, Rule} from "./Options";
 import {ReplaceSource} from "webpack-sources";
+import webpack from "webpack";
+
+export type Compilation = webpack.compilation.Compilation;
+export type Module = webpack.compilation.Module;
 
 export class CompilationRun {
-	compilations = [] as any[];
-	chunkEntryPaths_perChunk = [] as number[];
+	compilations = [] as Compilation[];
+	//chunkEntryPaths_perChunk = [] as number[];
 	compilationsCompleted = 0;
 }
+
+/*
+term descriptions
+==========
+compilation: TODO
+compilation-run: TODO
+chunk: TODO
+*/
 
 const packageName = "webpack-string-replacer";
 export class WebpackStringReplacer {
@@ -33,23 +45,23 @@ export class WebpackStringReplacer {
 		console.log("Resetting");
 		this.currentRun = {
 			compilations: [],
-			chunkEntryPaths_perChunk: [],
+			//chunkEntryPaths_perChunk: [],
 			//chunkMeta: [],
 			compilationsCompleted: 0,
 		};
 		// just store on objects under options
 		for (let rule of this.options.rules) {
-			rule.chunkIsMatch_perCompilation = [];
+			rule.compilationIsMatch_perCompilation = [];
 			rule.fileOrOutputFileMatchCounts_perCompilation = [];
 			for (let replacement of rule.replacements) {
 				replacement.fileOrOutputFileMatchCounts_perCompilation = [];
 			}
 		}
 	}
-	InitCompilationMetaForCompilationIndex(compilationIndex) {
+	InitCompilationMetaForCompilationIndex(compilationIndex: number) {
 		//this.currentRun.chunkMeta[compilationIndex] = {}
 		for (let rule of this.options.rules) {
-			rule.chunkIsMatch_perCompilation[compilationIndex] = null;
+			rule.compilationIsMatch_perCompilation[compilationIndex] = null;
 			rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = 0;
 			for (let replacement of rule.replacements) {
 				replacement.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = 0;
@@ -58,7 +70,7 @@ export class WebpackStringReplacer {
 	}
 
 	// now set up the WebpackStringReplacer.instance.SourceTransformer_CallFromLoader function (for the loader to call)
-	SourceTransformer_CallFromLoader(source, options) {
+	SourceTransformer_CallFromLoader(source: string, options) {
 		// some loaders botch the options-passing, so re-parse it if needed
 		if (typeof options == "string") {
 			try {
@@ -92,25 +104,25 @@ export class WebpackStringReplacer {
 	apply(compiler) {
 		const opt = this.options;
 		this.ResetCurrentRun(); // reset for first run
-		compiler.hooks.compilation.tap(packageName, (compilation, compilationParams) => {
+		compiler.hooks.compilation.tap(packageName, (compilation: Compilation, compilationParams) => {
 			this.currentRun.compilations.push(compilation);
 			const compilationIndex = this.currentRun.compilations.length - 1;
 			this.InitCompilationMetaForCompilationIndex(compilationIndex);
 
 			// stage 1 (if apply-stage early/mid): insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
 			if (this.Stages.includes("loader") || this.Stages.includes("optimizeModules")) {
-				compilation.hooks.normalModuleLoader.tap(packageName, (loaderContext, mod)=> {
+				compilation.hooks.normalModuleLoader.tap(packageName, (loaderContext: webpack.loader.LoaderContext, mod)=> {
 					if (loaderContext._compilation != compilation) throw new Error("LoaderContext and chunk out of sync.");
 
-					// todo: fix that we are treating compilations as if they were chunks!
-					const chunk = compilation;
-					let rulesToApply = this.options.rules.filter(rule=>this.PrepareToApplyRuleToModules(rule, [mod], chunk, compilationIndex) != null);
+					let rulesToApply = this.options.rules.filter(rule=>this.PrepareToApplyRuleToModules(rule, [mod], compilation, compilationIndex) != null);
 					if (rulesToApply.length == 0) return;
 					const rulesToApply_indexes = rulesToApply.map(rule=>this.options.rules.indexOf(rule));
-					if (mod.loaders == null) return; // if no other loader is set to load it, we probably shouldn't either
+					//if (mod["loaders"] == null) return; // if no other loader is set to load it, we probably shouldn't either
+					if (loaderContext.loaders == null) return; // if no other loader is set to load it, we probably shouldn't either
 
 					//console.log("Setting up loader:" + Object.keys(mod).join(",") + ";", mod.loaders.length);
-					mod.loaders.push({
+					//mod["loaders"].push({
+					loaderContext.loaders.push({
 					//mod.loaders.unshift({
 						loader: path.resolve(__dirname, 'Loader.js'),
 						options: {rulesToApply_indexes, compilationIndex},
@@ -128,9 +140,7 @@ export class WebpackStringReplacer {
 						let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*/
 						
 						for (let rule of this.options.rules) {
-							// todo: fix that we are treating compilations as if they were chunks!
-							const chunk = compilation;
-							let {matchingModules} = this.PrepareToApplyRuleToModules(rule, modules, chunk, compilationIndex);
+							let {matchingModules} = this.PrepareToApplyRuleToModules(rule, modules, compilation, compilationIndex);
 							for (let mod of matchingModules) {
 								const sourceText = mod._source._value;
 								mod._source._value = this.ApplyRuleAsSourceTransform(rule, sourceText, compilationIndex);
@@ -163,10 +173,10 @@ export class WebpackStringReplacer {
 								index: chunkIndex,
 								definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
 							};
-							rule.chunkIsMatch_perCompilation[compilationIndex] = false;
+							rule.compilationIsMatch_perCompilation[compilationIndex] = false;
 							if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) continue; // if chunk not included by rule, doesn't match
 							if (SomeFuncsMatch(chunkExcludeFuncs, chunkInfo)) continue; // if chunk excluded by rule, doesn't match
-							rule.chunkIsMatch_perCompilation[compilationIndex] = true;
+							rule.compilationIsMatch_perCompilation[compilationIndex] = true;
 		
 							//const matchingFiles = chunk.files.filter(file=> {})
 							for (let [fileIndex, file] of chunk.files.entries()) {
@@ -229,27 +239,28 @@ export class WebpackStringReplacer {
 		});
 	}
 
-	PrepareToApplyRuleToModules(rule, modules, chunk, chunkIndex) {
+	PrepareToApplyRuleToModules(rule: Rule, modules: Module[], compilation: Compilation, compilationIndex: number) {
 		const ruleIndex = this.options.rules.indexOf(rule);
 		
-		let chunkIsMatch = rule.chunkIsMatch_perChunk[chunkIndex];
+		// todo: fix that we are treating compilations as if they were chunks!
+		let chunkIsMatch = rule.compilationIsMatch_perCompilation[compilationIndex];
 		if (chunkIsMatch == null) {
 			const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
 			const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
 			const chunkInfo = {
-				index: chunkIndex,
-				definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name)),
+				index: compilationIndex,
+				definedChunkNames: [compilation["name"]].concat((compilation.entries || []).map(a=>a.name)),
 			};
 			
 			chunkIsMatch = SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);
-			rule.chunkIsMatch_perChunk[chunkIndex] = chunkIsMatch;
+			rule.compilationIsMatch_perCompilation[compilationIndex] = chunkIsMatch;
 		}
 		if (!chunkIsMatch) return null;
 
 		const fileIncludeFuncs = ToArray(rule.fileInclude).map(FileMatchToFunction);
 		const fileExcludeFuncs = ToArray(rule.fileExclude).map(FileMatchToFunction);
 		const matchingModules = modules.filter(mod=> {
-			let path = mod.resource; // path is absolute
+			let path = mod._source; // path is absolute
 			if (path == null) return false; // if module has no resource, doesn't match
 			path = path.replace(/\\/g, "/") // normalize path to have "/" separators
 			/*if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) return false; // if chunk not included by rule, doesn't match
@@ -265,11 +276,11 @@ export class WebpackStringReplacer {
 			}
 			return true;
 		});
-		rule.fileMatchCounts_perChunk[chunkIndex] = matchingModules.length;
+		rule.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] = matchingModules.length;
 
 		return {matchingModules};
 	}
-	ApplyRuleAsSourceTransform(rule, moduleSource, chunkIndex) {
+	ApplyRuleAsSourceTransform(rule: Rule, moduleSource: string, compilationIndex: number) {
 		//const ruleIndex = this.options.rules.indexOf(rule);
 
 		let result = moduleSource;
@@ -304,7 +315,7 @@ export class WebpackStringReplacer {
 			});
 			//replacement.fileMatchCounts_perChunk[chunkIndex] = (replacement.fileMatchCounts_perChunk[chunkIndex]|0) + patternMatchCount;
 			//this.currentRun.chunkMeta[chunkIndex].ruleMeta[ruleIndex].replacementMeta[replacementIndex].
-			replacement.fileMatchCounts_perChunk[chunkIndex] += patternMatchCount;
+			replacement.fileOrOutputFileMatchCounts_perCompilation[compilationIndex] += patternMatchCount;
 		}
 		return result;
 	}
@@ -312,12 +323,12 @@ export class WebpackStringReplacer {
 	VerifyMatchCounts() {
 		console.log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
 		for (let [ruleIndex, rule] of this.options.rules.entries()) {
-			let chunksMatching = rule.chunkIsMatch_perCompilation.filter(isMatch=>isMatch);
+			let chunksMatching = rule.compilationIsMatch_perCompilation.filter(isMatch=>isMatch);
 			if (!IsMatchCountCorrect(chunksMatching.length, rule.chunkMatchCount)) {
 				throw new Error(`
 					A rule did not have as many chunk-matches as it should have.
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Is-match (per chunk): [${rule.chunkIsMatch_perCompilation}] @target(${JSON.stringify(rule.chunkMatchCount)})
+					Is-match (per chunk): [${rule.compilationIsMatch_perCompilation}] @target(${JSON.stringify(rule.chunkMatchCount)})
 
 					Ensure you have the correct versions for any npm modules involved.
 				`);

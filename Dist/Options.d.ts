@@ -18,7 +18,7 @@ export declare class Rule {
     fileExclude?: FileMatch;
     fileMatchCount?: MatchCountTarget;
     replacements?: Replacement[];
-    chunkIsMatch_perCompilation?: boolean[];
+    compilationIsMatch_perCompilation?: boolean[];
     fileOrOutputFileMatchCounts_perCompilation?: number[];
 }
 export declare class Replacement {

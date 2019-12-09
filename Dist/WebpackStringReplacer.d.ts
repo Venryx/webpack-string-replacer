@@ -1,7 +1,9 @@
-import { Options, ApplyStage } from "./Options";
+import { Options, ApplyStage, Rule } from "./Options";
+import webpack from "webpack";
+export declare type Compilation = webpack.compilation.Compilation;
+export declare type Module = webpack.compilation.Module;
 export declare class CompilationRun {
-    compilations: any[];
-    chunkEntryPaths_perChunk: number[];
+    compilations: webpack.compilation.Compilation[];
     compilationsCompleted: number;
 }
 export declare class WebpackStringReplacer {
@@ -9,14 +11,14 @@ export declare class WebpackStringReplacer {
     options: Options;
     currentRun: CompilationRun;
     ResetCurrentRun(): void;
-    InitCompilationMetaForCompilationIndex(compilationIndex: any): void;
-    SourceTransformer_CallFromLoader(source: any, options: any): any;
+    InitCompilationMetaForCompilationIndex(compilationIndex: number): void;
+    SourceTransformer_CallFromLoader(source: string, options: any): string;
     stages_cache: ApplyStage[];
     get Stages(): ApplyStage[];
     apply(compiler: any): void;
-    PrepareToApplyRuleToModules(rule: any, modules: any, chunk: any, chunkIndex: any): {
-        matchingModules: any;
+    PrepareToApplyRuleToModules(rule: Rule, modules: Module[], compilation: Compilation, compilationIndex: number): {
+        matchingModules: webpack.compilation.Module[];
     };
-    ApplyRuleAsSourceTransform(rule: any, moduleSource: any, chunkIndex: any): any;
+    ApplyRuleAsSourceTransform(rule: Rule, moduleSource: string, compilationIndex: number): string;
     VerifyMatchCounts(): void;
 }
