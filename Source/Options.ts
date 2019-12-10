@@ -1,7 +1,13 @@
+/*export enum ValidationLogType {
+}*/
+export type ValidationLogType = "error" | "logError" | "logWarning" | "log";
 export class Options {
 	constructor(initialProps: Partial<Options>) {
 		Object.assign(this, initialProps);
 	}
+
+	//validationLogType = ValidationLogType.Error;
+	validationLogType?: ValidationLogType = "error";
 
 	ruleBase?: Partial<Rule>;
 	replacementBase?: Partial<Replacement>;

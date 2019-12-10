@@ -1,5 +1,7 @@
+export declare type ValidationLogType = "error" | "logError" | "logWarning" | "log";
 export declare class Options {
     constructor(initialProps: Partial<Options>);
+    validationLogType?: ValidationLogType;
     ruleBase?: Partial<Rule>;
     replacementBase?: Partial<Replacement>;
     rules: Rule[];

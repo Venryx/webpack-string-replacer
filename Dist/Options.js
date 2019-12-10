@@ -2,6 +2,8 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class Options {
     constructor(initialProps) {
+        //validationLogType = ValidationLogType.Error;
+        this.validationLogType = "error";
         this.rules = [];
         Object.assign(this, initialProps);
     }

@@ -343,51 +343,57 @@ class WebpackStringReplacer {
         }
         return result;
     }
+    Assert(condition, messageOrMessageFunc) {
+        if (condition)
+            return;
+        let message = Utils_1.IsString(messageOrMessageFunc) ? messageOrMessageFunc : messageOrMessageFunc();
+        let logType = this.options.validationLogType;
+        if (logType == "error")
+            throw new Error(message);
+        else if (logType == "logError")
+            console.error(message);
+        else if (logType == "logWarning")
+            console.warn(message);
+        else if (logType == "log")
+            console.log(message);
+    }
     VerifyMatchCounts() {
         console.log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
         for (let [ruleIndex, rule] of this.options.rules.entries()) {
             let ruleMeta = this.currentRun.ruleMetas.get(rule) || new RuleMeta();
             let ruleCompilationMetas = this.currentRun.compilations.map((c, index) => ruleMeta.compilationMeta.get(index) || new RulePlusCompilationMeta());
-            if (!Utils_1.IsMatchCountCorrect(ruleCompilationMetas.filter(a => a.compilationIsMatch).length, rule.chunkMatchCount)) {
-                throw new Error(`
-					A rule did not have as many chunk-matches as it should have.
-					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Chunk-is-match (per compilation): [${ruleCompilationMetas.map(a => a.compilationIsMatch)}] @target(${JSON.stringify(rule.chunkMatchCount)})
+            this.Assert(Utils_1.IsMatchCountCorrect(ruleCompilationMetas.filter(a => a.compilationIsMatch).length, rule.chunkMatchCount), `
+				A rule did not have as many chunk-matches as it should have.
+				Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
+				Chunk-is-match (per compilation): [${ruleCompilationMetas.map(a => a.compilationIsMatch)}] @target(${JSON.stringify(rule.chunkMatchCount)})
 
-					Ensure you have the correct versions for any npm modules involved.
-				`);
-            }
-            if (!ruleCompilationMetas.find(a => Utils_1.IsMatchCountCorrect(a.outputFileMatchCount, rule.outputFileMatchCount))) {
-                throw new Error(`
-					A rule did not have as many output-file-matches as it should have (in any compilation).
-					Rule: #${ruleIndex} @include(${rule.outputFileInclude}) @exclude(${rule.outputFileExclude})
-					Match counts (per compilation): [${ruleCompilationMetas.map(a => a.outputFileMatchCount)}] @target(${JSON.stringify(rule.outputFileMatchCount)})
+				Ensure you have the correct versions for any npm modules involved.
+			`);
+            this.Assert(ruleCompilationMetas.find(a => Utils_1.IsMatchCountCorrect(a.outputFileMatchCount, rule.outputFileMatchCount)), `
+				A rule did not have as many output-file-matches as it should have (in any compilation).
+				Rule: #${ruleIndex} @include(${rule.outputFileInclude}) @exclude(${rule.outputFileExclude})
+				Match counts (per compilation): [${ruleCompilationMetas.map(a => a.outputFileMatchCount)}] @target(${JSON.stringify(rule.outputFileMatchCount)})
 
-					Ensure you have the correct versions for any npm modules involved.
-				`);
-            }
-            if (!ruleCompilationMetas.find(a => Utils_1.IsMatchCountCorrect(a.fileMatchCount, rule.fileMatchCount))) {
-                throw new Error(`
-					A rule did not have as many file-matches as it should have (in any compilation).
-					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-					Match counts (per compilation): [${ruleCompilationMetas.map(a => a.fileMatchCount)}] @target(${JSON.stringify(rule.fileMatchCount)})
+				Ensure you have the correct versions for any npm modules involved.
+			`);
+            this.Assert(ruleCompilationMetas.find(a => Utils_1.IsMatchCountCorrect(a.fileMatchCount, rule.fileMatchCount)), `
+				A rule did not have as many file-matches as it should have (in any compilation).
+				Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
+				Match counts (per compilation): [${ruleCompilationMetas.map(a => a.fileMatchCount)}] @target(${JSON.stringify(rule.fileMatchCount)})
 
-					Ensure you have the correct versions for any npm modules involved.
-				`);
-            }
+				Ensure you have the correct versions for any npm modules involved.
+			`);
             for (let [index, replacement] of rule.replacements.entries()) {
                 let replacementMeta = this.currentRun.replacementMetas.get(replacement) || new ReplacementMeta();
                 let replacementCompilationMetas = this.currentRun.compilations.map((c, index) => replacementMeta.compilationMeta.get(index) || new ReplacementPlusCompilationMeta());
-                if (!replacementCompilationMetas.find(a => Utils_1.IsMatchCountCorrect(a.patternMatchCount, replacement.patternMatchCount))) {
-                    throw new Error(`
-						A string-replacement pattern did not have as many matches as it should have (in any compilation).
-						Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
-						Replacement: #${index} @pattern(${replacement.pattern})
-						Match counts (per compilation): [${replacementCompilationMetas.map(a => a.patternMatchCount)}] @target(${JSON.stringify(replacement.patternMatchCount)})
+                this.Assert(replacementCompilationMetas.find(a => Utils_1.IsMatchCountCorrect(a.patternMatchCount, replacement.patternMatchCount)), `
+					A string-replacement pattern did not have as many matches as it should have (in any compilation).
+					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
+					Replacement: #${index} @pattern(${replacement.pattern})
+					Match counts (per compilation): [${replacementCompilationMetas.map(a => a.patternMatchCount)}] @target(${JSON.stringify(replacement.patternMatchCount)})
 
-						Ensure you have the correct versions for any npm modules involved.
-					`);
-                }
+					Ensure you have the correct versions for any npm modules involved.
+				`);
             }
         }
     }

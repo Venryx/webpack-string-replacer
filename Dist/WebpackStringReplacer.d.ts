@@ -42,5 +42,6 @@ export declare class WebpackStringReplacer {
         matchingModules: webpack.compilation.Module[];
     };
     ApplyRuleAsSourceTransform(rule: Rule, moduleSource: string, compilationIndex: number, modulePath: string): string;
+    Assert(condition: any, messageOrMessageFunc: string | (() => string)): void;
     VerifyMatchCounts(): void;
 }

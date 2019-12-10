@@ -63,6 +63,10 @@ webpackConfig.plugins.push(new WebpackStringReplacer({
 
 If you prefer viewing the raw TypeScript typings, you can open the "Source/Options.ts" file, or the "Dist/*.d.ts" files.
 
+#### `validationLogType` - "error" | "logError" | "logWarning" | "log"
+
+> What type of logging to use for validation failures, eg. match-count not being met. (error: throw new Error(...), the others: console.X(...))
+
 #### `ruleBase` - Partial<Rule>
 
 > If set, each rule will "inherit" from the options specified here.
