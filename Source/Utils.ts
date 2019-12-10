@@ -1,4 +1,5 @@
 import webpack = require("webpack");
+import {ShouldValidateCondition, ShouldValidateData} from "./Options";
 
 export function IsBool(any): any is boolean { return typeof any === "boolean"; }
 export function IsNumber(any): any is number { return typeof any === "number"; }
@@ -19,6 +20,11 @@ export function ToRegex(str) {
 	if (IsRegex(str)) return str;
 	if (IsString(str)) return new RegExp(EscapeForRegex(str), "g");
 	throw new Error("Invalid pattern.");
+}
+
+// proxy for console.log, which adds a new-line (otherwise, the log just gets appended to the other webpack log lines, making it hard to see)
+export function Log(...args) {
+	return console.log("\n", ...args);
 }
 
 export function Distinct(items: any[]) {
@@ -77,6 +83,12 @@ export function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
 		return satisfiesMin && satisfiesMax;
 	}
 	throw new Error("Match-count target must either be a number (for exact target), or a {min, max} object (for range).");
+}
+
+export function ShouldValidate(shouldValidate: ShouldValidateCondition, shouldValidateData: ShouldValidateData) {
+	if (IsBool(shouldValidate)) return shouldValidate;
+	if (IsFunction(shouldValidate)) return shouldValidate(shouldValidateData);
+	throw new Error("Invalid shouldValidate condition.");
 }
 
 export function Slice_NumberOrBool(str: string, length_orTrueForRest: number | boolean) {

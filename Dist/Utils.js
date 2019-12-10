@@ -30,6 +30,11 @@ function ToRegex(str) {
     throw new Error("Invalid pattern.");
 }
 exports.ToRegex = ToRegex;
+// proxy for console.log, which adds a new-line (otherwise, the log just gets appended to the other webpack log lines, making it hard to see)
+function Log(...args) {
+    return console.log("\n", ...args);
+}
+exports.Log = Log;
 function Distinct(items) {
     return Array.from(new Set(items));
 }
@@ -95,6 +100,14 @@ function IsMatchCountCorrect(actualMatchCount, targetMatchCountOrRange) {
     throw new Error("Match-count target must either be a number (for exact target), or a {min, max} object (for range).");
 }
 exports.IsMatchCountCorrect = IsMatchCountCorrect;
+function ShouldValidate(shouldValidate, shouldValidateData) {
+    if (IsBool(shouldValidate))
+        return shouldValidate;
+    if (IsFunction(shouldValidate))
+        return shouldValidate(shouldValidateData);
+    throw new Error("Invalid shouldValidate condition.");
+}
+exports.ShouldValidate = ShouldValidate;
 function Slice_NumberOrBool(str, length_orTrueForRest) {
     if (length_orTrueForRest == false)
         return "";

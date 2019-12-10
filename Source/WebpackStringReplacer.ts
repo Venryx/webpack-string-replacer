@@ -1,6 +1,6 @@
 // @ts-check_disabled
 import * as path from "path";
-import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct, GetModuleSource, SetModuleSource, Slice_NumberOrBool, GetModuleResourcePath} from "./Utils";
+import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct, GetModuleSource, SetModuleSource, Slice_NumberOrBool, GetModuleResourcePath, ShouldValidate, Log} from "./Utils";
 import {Options, ApplyStage, Rule, Replacement} from "./Options";
 import {ReplaceSource, Source} from "webpack-sources";
 import * as webpack from "webpack";
@@ -76,7 +76,7 @@ export class WebpackStringReplacer {
 	// 	b1.compilation, b2.compilation, [many calls to normalModuleLoader for all chunks], b1.optimizeModules, b1.afterCompile, b2.optimizeModules, b2.afterCompile
 	// The "compilation run state" below helps keep track of those executions, so we can figure out the chunk-count. (and thus when the compilation-run is fully over)
 	ResetCurrentRun() {
-		console.log("Resetting");
+		Log("Resetting");
 		this.currentRun = new CompilationRun();
 	}
 
@@ -98,7 +98,7 @@ export class WebpackStringReplacer {
 			}
 		}
 
-		//console.log("Loader called with:", source);
+		//Log("Loader called with:", source);
 		const {rulesToApply_indexes, compilationIndex, modulePath} = options;
 		const rulesToApply = rulesToApply_indexes.map(index=>this.options.rules[index]);
 		for (let rule of rulesToApply) {
@@ -139,12 +139,12 @@ export class WebpackStringReplacer {
 					let modulePath = GetModuleResourcePath(mod);
 					if (mod["loaders"] == null) {
 						//mod["loaders"] = [];
-						console.log(`LoaderStage: Ignoring file at path "${modulePath}", since it has no other loaders. (intercepting may break some other plugins, eg. html-webpack-plugin)`);
+						Log(`LoaderStage: Ignoring file at path "${modulePath}", since it has no other loaders. (intercepting may break some other plugins, eg. html-webpack-plugin)`);
 						return;
 					}
 
-					//console.log("Setting up loader:", Object.keys(mod).join(","), ";", Object.keys(loaderContext).join(","), ";", mod["loaders"].length);
-					//console.log(`Setting up loader. @modPath(${modulePath}}`);
+					//Log("Setting up loader:", Object.keys(mod).join(","), ";", Object.keys(loaderContext).join(","), ";", mod["loaders"].length);
+					//Log(`Setting up loader. @modPath(${modulePath}}`);
 					//loaderContext.loaders.push({ // @types/webpack says it's on loaderContext, but runtime says no; types must be outdated
 					//mod["loaders"].unshift({
 					mod["loaders"].push({
@@ -174,7 +174,7 @@ export class WebpackStringReplacer {
 			// stage 3 (if apply-stage late)
 			if (this.Stages.includes("optimizeChunkAssets")) {
 				compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
-					//console.log("Chunks files:", chunks);
+					//Log("Chunks files:", chunks);
 					for (let [ruleIndex, rule] of this.GetRulesForStage("optimizeChunkAssets").entries()) {
 						let ruleMeta = this.currentRun.GetRuleMeta(rule, compilationIndex);
 						const chunkIncludeFuncs = ToArray(rule.chunkInclude).map(ChunkMatchToFunction);
@@ -208,9 +208,9 @@ export class WebpackStringReplacer {
 
 								const originalSource = compilation.assets[file] as Source;
 								if (rule.logFileMatches || rule.logFileMatchContents) {
-									console.log(`Found output-file match. @rule(${ruleIndex}) @file:` + file);
+									Log(`Found output-file match. @rule(${ruleIndex}) @file:` + file);
 									if (rule.logFileMatchContents) {
-										console.log(`Contents:\n==========\n${Slice_NumberOrBool(originalSource.source(), rule.logFileMatchContents)}\n==========\n`);
+										Log(`Contents:\n==========\n${Slice_NumberOrBool(originalSource.source(), rule.logFileMatchContents)}\n==========\n`);
 									}
 								}
 		
@@ -227,7 +227,7 @@ export class WebpackStringReplacer {
 		
 									matchIndexes.forEach((startPos) => {
 										const endPos = startPos + patternStr.length - 1;
-										//console.log("Replacing;", startPos, ";", endPos);
+										//Log("Replacing;", startPos, ";", endPos);
 										newSource.replace(startPos, endPos, replacement.replacement);
 									});
 									replacementMeta.patternMatchCount += matchIndexes.length;
@@ -236,7 +236,7 @@ export class WebpackStringReplacer {
 								if (newSource) {
 									/*let newFileName = "new_" + file;
 									compilation.assets[newFileName] = newSource;
-									console.log("Adding new source:", newFileName, ";Size:", newSource.size());
+									Log("Adding new source:", newFileName, ";Size:", newSource.size());
 									chunk.files[fileIndex] = newFileName;*/
 									compilation.assets[file] = newSource;
 								}
@@ -253,9 +253,9 @@ export class WebpackStringReplacer {
 				this.currentRun.compilationsCompleted++;
 				// if we just finished applying the rules for the last chunk, the compilation-run is complete
 				let isLastCompilation = this.currentRun.compilationsCompleted == this.currentRun.compilations.length;
-				// if the compilation run is complete, verify the match counts
-				if (isLastCompilation) {
-					this.VerifyMatchCounts();
+				// if the compilation run is complete, and the should-validate condition passes, validate the match counts
+				if (isLastCompilation && ShouldValidate(this.options.shouldValidate, {compilations: this.currentRun.compilations})) {
+					this.ValidateMatchCounts();
 					this.ResetCurrentRun(); // reset for next run
 				}
 			});
@@ -290,7 +290,7 @@ export class WebpackStringReplacer {
 			if (SomeFuncsMatch(fileExcludeFuncs, modulePath)) return false; // if module excluded by rule, doesn't match
 
 			/*if (rule.logFileMatches || rule.logFileMatchContents) {
-				console.log(`Found file match. @rule(${this.options.rules.indexOf(rule)}) @path:` + modulePath);
+				Log(`Found file match. @rule(${this.options.rules.indexOf(rule)}) @path:` + modulePath);
 			}*/
 
 			return true;
@@ -303,16 +303,16 @@ export class WebpackStringReplacer {
 	ApplyRuleAsSourceTransform(rule: Rule, moduleSource: string, compilationIndex: number, modulePath: string) {
 		// do the logging here (instead of PrepareToApplyRuleToModules), because if using apply-stage "loader", the source isn't accessible when Prepare... is called
 		if (rule.logFileMatches || rule.logFileMatchContents) {
-			console.log(`Found file match. @rule(${this.options.rules.indexOf(rule)}) @path:` + modulePath);
+			Log(`Found file match. @rule(${this.options.rules.indexOf(rule)}) @path:` + modulePath);
 			if (rule.logFileMatchContents) {
 				//console.dir(mod);
-				//console.log(`Contents:\n==========\n${GetModuleSource(mod).slice(0, rule.logFileMatchContents)}\n==========\n`);
-				console.log(`Contents:\n==========\n${Slice_NumberOrBool(moduleSource, rule.logFileMatchContents)}\n==========\n`);
+				//Log(`Contents:\n==========\n${GetModuleSource(mod).slice(0, rule.logFileMatchContents)}\n==========\n`);
+				Log(`Contents:\n==========\n${Slice_NumberOrBool(moduleSource, rule.logFileMatchContents)}\n==========\n`);
 			}
 		}
 
 		let result = moduleSource;
-		//console.log("Length:" + moduleSource.length);
+		//Log("Length:" + moduleSource.length);
 		for (let replacement of rule.replacements) {
 			let replacementMeta = this.currentRun.GetReplacementMeta(replacement, compilationIndex);
 			let patternMatchCount = 0;
@@ -335,7 +335,7 @@ export class WebpackStringReplacer {
 						Math.max(0, match.index - replacement.logAroundPatternMatches),
 						Math.min(result.length, match.index + match[0].length + replacement.logAroundPatternMatches)
 					);
-					console.log(`Logging text around pattern match:\n==========\n${sectionToLog}\n==========\n`);
+					Log(`Logging text around pattern match:\n==========\n${sectionToLog}\n==========\n`);
 				}
 			}
 
@@ -356,14 +356,15 @@ export class WebpackStringReplacer {
 		if (condition) return;
 		let message = IsString(messageOrMessageFunc) ? messageOrMessageFunc : messageOrMessageFunc();
 		let logType = this.options.validationLogType;
+		//if (logType == "error") throw new Error("\n" + message); // commented; asserts don't need new-line, since they already have one added
 		if (logType == "error") throw new Error(message);
 		else if (logType == "logError") console.error(message);
 		else if (logType == "logWarning") console.warn(message);
 		else if (logType == "log") console.log(message);
 	}
 
-	VerifyMatchCounts() {
-		console.log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
+	ValidateMatchCounts() {
+		Log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
 		for (let [ruleIndex, rule] of this.options.rules.entries()) {
 			let ruleMeta = this.currentRun.ruleMetas.get(rule) || new RuleMeta();
 			let ruleCompilationMetas = this.currentRun.compilations.map((c, index)=>ruleMeta.compilationMeta.get(index) || new RulePlusCompilationMeta());

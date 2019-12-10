@@ -1,13 +1,20 @@
+import webpack = require("webpack");
+
 /*export enum ValidationLogType {
 }*/
 export type ValidationLogType = "error" | "logError" | "logWarning" | "log";
+export type ShouldValidateData = {compilations: webpack.compilation.Compilation[]};
+export type ShouldValidateCondition = boolean | ((data: ShouldValidateData)=>boolean);
+
 export class Options {
 	constructor(initialProps: Partial<Options>) {
 		Object.assign(this, initialProps);
 	}
 
+	// todo: find way of defaulting to "on first compile" (or, fix the match-count checking system to work with incremental compiles)
+	shouldValidate?: ShouldValidateCondition = true;
 	//validationLogType = ValidationLogType.Error;
-	validationLogType?: ValidationLogType = "error";
+	validationLogType?: ValidationLogType = "logError"; // actual errors cause "ts-node-dev" to stop recompiling, so default to logError
 
 	ruleBase?: Partial<Rule>;
 	replacementBase?: Partial<Replacement>;

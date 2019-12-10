@@ -2,8 +2,10 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 class Options {
     constructor(initialProps) {
+        // todo: find way of defaulting to "on first compile" (or, fix the match-count checking system to work with incremental compiles)
+        this.shouldValidate = true;
         //validationLogType = ValidationLogType.Error;
-        this.validationLogType = "error";
+        this.validationLogType = "logError"; // actual errors cause "ts-node-dev" to stop recompiling, so default to logError
         this.rules = [];
         Object.assign(this, initialProps);
     }

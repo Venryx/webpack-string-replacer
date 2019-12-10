@@ -50,7 +50,7 @@ webpackConfig.plugins.push(new WebpackStringReplacer({
 				replacement: (match, sub1, offset, sourceStr)=> {
 					return (
 						`location.href_disabled = ${sub1};
-						console.log("Redirect attempted to: " + location.href_disabled);`
+						Log("Redirect attempted to: " + location.href_disabled);`
 					);
 				},
 			},
@@ -62,6 +62,10 @@ webpackConfig.plugins.push(new WebpackStringReplacer({
 ### Options
 
 If you prefer viewing the raw TypeScript typings, you can open the "Source/Options.ts" file, or the "Dist/*.d.ts" files.
+
+#### `shouldValidate` - bool | ({compilations: Compilation[]})=>bool
+
+> If set, the validations (eg. match-count requirements) will only be run when the condition is met (at the end of a compilation run).
 
 #### `validationLogType` - "error" | "logError" | "logWarning" | "log"
 

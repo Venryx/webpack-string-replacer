@@ -1,6 +1,12 @@
+import webpack = require("webpack");
 export declare type ValidationLogType = "error" | "logError" | "logWarning" | "log";
+export declare type ShouldValidateData = {
+    compilations: webpack.compilation.Compilation[];
+};
+export declare type ShouldValidateCondition = boolean | ((data: ShouldValidateData) => boolean);
 export declare class Options {
     constructor(initialProps: Partial<Options>);
+    shouldValidate?: ShouldValidateCondition;
     validationLogType?: ValidationLogType;
     ruleBase?: Partial<Rule>;
     replacementBase?: Partial<Replacement>;
