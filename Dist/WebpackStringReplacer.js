@@ -69,6 +69,7 @@ const packageName = "webpack-string-replacer";
 class WebpackStringReplacer {
     //static instance;
     constructor(options) {
+        options = new Options_1.Options(options);
         WebpackStringReplacer["instance"] = this;
         for (let [ruleIndex, rule] of options.rules.entries()) {
             // apply options from Rule-class default-values, and ruleBase
@@ -357,9 +358,11 @@ class WebpackStringReplacer {
             console.warn(message);
         else if (logType == "log")
             console.log(message);
+        else
+            throw new Error(`Invalid validationLogType: ${logType}`);
     }
     ValidateMatchCounts() {
-        Utils_1.Log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
+        Utils_1.Log(`Verifying match counts... @compilations(${this.currentRun.compilations.length}) @rules(${this.options.rules.length})`);
         for (let [ruleIndex, rule] of this.options.rules.entries()) {
             let ruleMeta = this.currentRun.ruleMetas.get(rule) || new RuleMeta();
             let ruleCompilationMetas = this.currentRun.compilations.map((c, index) => ruleMeta.compilationMeta.get(index) || new RulePlusCompilationMeta());
@@ -387,6 +390,7 @@ class WebpackStringReplacer {
             for (let [index, replacement] of rule.replacements.entries()) {
                 let replacementMeta = this.currentRun.replacementMetas.get(replacement) || new ReplacementMeta();
                 let replacementCompilationMetas = this.currentRun.compilations.map((c, index) => replacementMeta.compilationMeta.get(index) || new ReplacementPlusCompilationMeta());
+                //console.log(`Checking replacement. @rule(${ruleIndex}) @replacement(${index}) @target(${replacement.patternMatchCount}) @actual(${replacementCompilationMetas.map(a=>a.patternMatchCount)})`);
                 this.Assert(replacementCompilationMetas.find(a => Utils_1.IsMatchCountCorrect(a.patternMatchCount, replacement.patternMatchCount)), `
 					A string-replacement pattern did not have as many matches as it should have (in any compilation).
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})

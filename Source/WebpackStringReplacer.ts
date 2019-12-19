@@ -56,6 +56,7 @@ const packageName = "webpack-string-replacer";
 export class WebpackStringReplacer {
 	//static instance;
 	constructor(options: Options) {
+		options = new Options(options);
 		WebpackStringReplacer["instance"] = this;
 		for (let [ruleIndex, rule] of options.rules.entries()) {
 			// apply options from Rule-class default-values, and ruleBase
@@ -361,10 +362,11 @@ export class WebpackStringReplacer {
 		else if (logType == "logError") console.error(message);
 		else if (logType == "logWarning") console.warn(message);
 		else if (logType == "log") console.log(message);
+		else throw new Error(`Invalid validationLogType: ${logType}`);
 	}
 
 	ValidateMatchCounts() {
-		Log(`Verifying match counts... @compilations(${this.currentRun.compilations.length})`);
+		Log(`Verifying match counts... @compilations(${this.currentRun.compilations.length}) @rules(${this.options.rules.length})`);
 		for (let [ruleIndex, rule] of this.options.rules.entries()) {
 			let ruleMeta = this.currentRun.ruleMetas.get(rule) || new RuleMeta();
 			let ruleCompilationMetas = this.currentRun.compilations.map((c, index)=>ruleMeta.compilationMeta.get(index) || new RulePlusCompilationMeta());
@@ -397,6 +399,7 @@ export class WebpackStringReplacer {
 				let replacementMeta = this.currentRun.replacementMetas.get(replacement) || new ReplacementMeta();
 				let replacementCompilationMetas = this.currentRun.compilations.map((c, index)=>replacementMeta.compilationMeta.get(index) || new ReplacementPlusCompilationMeta());
 
+				//console.log(`Checking replacement. @rule(${ruleIndex}) @replacement(${index}) @target(${replacement.patternMatchCount}) @actual(${replacementCompilationMetas.map(a=>a.patternMatchCount)})`);
 				this.Assert(replacementCompilationMetas.find(a=>IsMatchCountCorrect(a.patternMatchCount, replacement.patternMatchCount)), `
 					A string-replacement pattern did not have as many matches as it should have (in any compilation).
 					Rule: #${ruleIndex} @include(${rule.fileInclude}) @exclude(${rule.fileExclude})
