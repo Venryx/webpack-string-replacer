@@ -1,9 +1,9 @@
 import { Options, ApplyStage, Rule, Replacement } from "./Options";
 import * as webpack from "webpack";
-export declare type Compilation = webpack.compilation.Compilation;
-export declare type Module = webpack.compilation.Module;
+export declare type Compilation = webpack.Compilation;
+export declare type Module = webpack.Module;
 export declare class CompilationRun {
-    compilations: webpack.compilation.Compilation[];
+    compilations: webpack.Compilation[];
     compilationsCompleted: number;
     ruleMetas: Map<Rule, RuleMeta>;
     GetRuleMeta(rule: Rule, compilationIndex: number): RulePlusCompilationMeta;
@@ -39,7 +39,7 @@ export declare class WebpackStringReplacer {
     GetRulesForStage(stage: ApplyStage): Rule[];
     apply(compiler: any): void;
     GetModulesWhereRuleShouldBeApplied(rule: Rule, modules: Module[], compilation: Compilation, compilationIndex: number): {
-        matchingModules: webpack.compilation.Module[];
+        matchingModules: webpack.Module[];
     };
     ApplyRuleAsSourceTransform(rule: Rule, moduleSource: string, compilationIndex: number, modulePath: string): string;
     Assert(condition: any, messageOrMessageFunc: string | (() => string)): void;

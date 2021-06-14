@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.Replacement = exports.Rule = exports.Options = void 0;
 class Options {
     constructor(initialProps) {
         // todo: find way of defaulting to "on first compile" (or, fix the match-count checking system to work with incremental compiles)

@@ -100,14 +100,15 @@ export function Slice_NumberOrBool(str: string, length_orTrueForRest: number | b
 // module helpers (due to @types/webpack being outdated)
 // ==========
 
-export function GetModuleSource(mod: webpack.compilation.Module) {
+// todo: get working in webpack 5
+/*export function GetModuleSource(mod: webpack.Module) {
 	return mod._source._value;
 }
-export function SetModuleSource(mod: webpack.compilation.Module, newSource: string) {
+export function SetModuleSource(mod: webpack.Module, newSource: string) {
 	mod._source._value = newSource;
-}
+}*/
 
 // path is absolute
-export function GetModuleResourcePath(mod: webpack.compilation.Module, loaderContext?: webpack.loader.LoaderContext) {
+export function GetModuleResourcePath(mod: webpack.Module, loaderContext?: webpack.LoaderContext<any>) {
 	return mod["resource"] || mod["request"] || loaderContext?.resourcePath || loaderContext?.resource;
 }

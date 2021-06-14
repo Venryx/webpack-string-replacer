@@ -1,5 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.GetModuleResourcePath = exports.Slice_NumberOrBool = exports.ShouldValidate = exports.IsMatchCountCorrect = exports.SomeFuncsMatch = exports.FileMatchToFunction = exports.ChunkMatchToFunction = exports.Distinct = exports.Log = exports.ToRegex = exports.EscapeForRegex = exports.ToArray = exports.IsFunction = exports.IsObject = exports.IsArray = exports.IsRegex = exports.IsString = exports.IsNumber = exports.IsBool = void 0;
 function IsBool(any) { return typeof any === "boolean"; }
 exports.IsBool = IsBool;
 function IsNumber(any) { return typeof any === "number"; }
@@ -15,7 +16,8 @@ function IsObject(any) { return typeof any === "object"; }
 exports.IsObject = IsObject;
 function IsFunction(any) { return typeof any === "function"; }
 exports.IsFunction = IsFunction;
-exports.ToArray = any => IsArray(any) ? any : (any != null ? [any] : []);
+const ToArray = any => IsArray(any) ? any : (any != null ? [any] : []);
+exports.ToArray = ToArray;
 function EscapeForRegex(literalString) {
     //return literalString.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
     // escape all control characters (probably more cautious than needed, but that's ok)
@@ -118,18 +120,16 @@ function Slice_NumberOrBool(str, length_orTrueForRest) {
 exports.Slice_NumberOrBool = Slice_NumberOrBool;
 // module helpers (due to @types/webpack being outdated)
 // ==========
-function GetModuleSource(mod) {
+// todo: get working in webpack 5
+/*export function GetModuleSource(mod: webpack.Module) {
     return mod._source._value;
 }
-exports.GetModuleSource = GetModuleSource;
-function SetModuleSource(mod, newSource) {
+export function SetModuleSource(mod: webpack.Module, newSource: string) {
     mod._source._value = newSource;
-}
-exports.SetModuleSource = SetModuleSource;
+}*/
 // path is absolute
 function GetModuleResourcePath(mod, loaderContext) {
-    var _a, _b;
-    return mod["resource"] || mod["request"] || ((_a = loaderContext) === null || _a === void 0 ? void 0 : _a.resourcePath) || ((_b = loaderContext) === null || _b === void 0 ? void 0 : _b.resource);
+    return mod["resource"] || mod["request"] || (loaderContext === null || loaderContext === void 0 ? void 0 : loaderContext.resourcePath) || (loaderContext === null || loaderContext === void 0 ? void 0 : loaderContext.resource);
 }
 exports.GetModuleResourcePath = GetModuleResourcePath;
 //# sourceMappingURL=Utils.js.map

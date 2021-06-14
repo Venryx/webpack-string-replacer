@@ -3,7 +3,7 @@ import webpack = require("webpack");
 /*export enum ValidationLogType {
 }*/
 export type ValidationLogType = "error" | "logError" | "logWarning" | "log";
-export type ShouldValidateData = {compilations: webpack.compilation.Compilation[]};
+export type ShouldValidateData = {compilations: webpack.Compilation[]};
 export type ShouldValidateCondition = boolean | ((data: ShouldValidateData)=>boolean);
 
 export class Options {

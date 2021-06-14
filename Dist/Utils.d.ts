@@ -18,6 +18,4 @@ export declare function SomeFuncsMatch(matchFuncs: any, val: any): boolean;
 export declare function IsMatchCountCorrect(actualMatchCount: any, targetMatchCountOrRange: any): boolean;
 export declare function ShouldValidate(shouldValidate: ShouldValidateCondition, shouldValidateData: ShouldValidateData): boolean;
 export declare function Slice_NumberOrBool(str: string, length_orTrueForRest: number | boolean): string;
-export declare function GetModuleSource(mod: webpack.compilation.Module): any;
-export declare function SetModuleSource(mod: webpack.compilation.Module, newSource: string): void;
-export declare function GetModuleResourcePath(mod: webpack.compilation.Module, loaderContext?: webpack.loader.LoaderContext): any;
+export declare function GetModuleResourcePath(mod: webpack.Module, loaderContext?: webpack.LoaderContext<any>): any;

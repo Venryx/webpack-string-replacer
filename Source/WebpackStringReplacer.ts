@@ -1,6 +1,6 @@
 // @ts-check_disabled
 import * as path from "path";
-import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct, GetModuleSource, SetModuleSource, Slice_NumberOrBool, GetModuleResourcePath, ShouldValidate, Log} from "./Utils";
+import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex, ChunkMatchToFunction, FileMatchToFunction, SomeFuncsMatch, IsMatchCountCorrect, Distinct, Slice_NumberOrBool, GetModuleResourcePath, ShouldValidate, Log} from "./Utils";
 import {Options, ApplyStage, Rule, Replacement} from "./Options";
 import {ReplaceSource, Source} from "webpack-sources";
 import * as webpack from "webpack";
@@ -162,11 +162,12 @@ export class WebpackStringReplacer {
 
 			// stage 2 (if apply-stage mid): wait for last chunk to be done optimizing-modules, then apply rules
 			if (this.Stages.includes("optimizeModules")) {
-				compilation.hooks.optimizeModules.tap(packageName, modules=> {
+				throw new Error(`Plugin has not yet been updated to support "optimizeModules"-stage-replacements in Webpack 5.`);
+				/*compilation.hooks.optimizeModules.tap(packageName, modules=> {
 					/*let chunk = this.currentRun.chunks.find(a=>a.modules == modules);
 					if (chunk == null) throw new Error("Failed to find chunk for module-list in OnOptimizeModules.");
 					this.currentRun.optimizeModules_chunksReached.push(chunk);
-					let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*/
+					let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*#/
 					
 					for (let rule of this.GetRulesForStage("optimizeModules")) {
 						let {matchingModules} = this.GetModulesWhereRuleShouldBeApplied(rule, Array.from(modules), compilation, compilationIndex);
@@ -174,7 +175,7 @@ export class WebpackStringReplacer {
 							SetModuleSource(mod, this.ApplyRuleAsSourceTransform(rule, GetModuleSource(mod), compilationIndex, GetModuleResourcePath(mod)));
 						}
 					}
-				});
+				});*/
 			}
 
 			// stage 3 (if apply-stage late)
