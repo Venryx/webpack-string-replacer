@@ -4,9 +4,10 @@ import {IsBool, IsString, IsArray, IsFunction, ToArray, EscapeForRegex, ToRegex,
 import {Options, ApplyStage, Rule, Replacement} from "./Options";
 import {ReplaceSource, Source} from "webpack-sources";
 import * as webpack from "webpack";
+import {NormalModule, LoaderContext} from "webpack";
 
-export type Compilation = webpack.compilation.Compilation;
-export type Module = webpack.compilation.Module;
+export type Compilation = webpack.Compilation;
+export type Module = webpack.Module;
 
 export class CompilationRun {
 	compilations = [] as Compilation[];
@@ -128,7 +129,8 @@ export class WebpackStringReplacer {
 
 			// stage 1 (if apply-stage early): insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
 			if (this.Stages.includes("loader")) {
-				compilation.hooks.normalModuleLoader.tap(packageName, (loaderContext: webpack.loader.LoaderContext, mod)=> {
+				//compilation.hooks.normalModuleLoader.tap(packageName, (loaderContext: webpack.loader.LoaderContext, mod)=> {
+				NormalModule.getCompilationHooks(compilation).loader.tap(packageName, (loaderContext: LoaderContext<Options>, mod)=> {
 					if (loaderContext._compilation != compilation) throw new Error("LoaderContext and chunk out of sync.");
 
 					let rulesToApply = this.GetRulesForStage("loader").filter(rule=> {
@@ -149,6 +151,9 @@ export class WebpackStringReplacer {
 					//loaderContext.loaders.push({ // @types/webpack says it's on loaderContext, but runtime says no; types must be outdated
 					//mod["loaders"].unshift({
 					mod["loaders"].push({
+						type: null,
+						//ident: "webpack-string-replacer_Loader.js",
+						ident: null,
 						loader: path.resolve(__dirname, 'Loader.js'),
 						options: {rulesToApply_indexes, compilationIndex, modulePath},
 					});
@@ -164,7 +169,7 @@ export class WebpackStringReplacer {
 					let isLastChunk = this.currentRun.optimizeModules_chunksReached.length == this.currentRun.chunks.length;*/
 					
 					for (let rule of this.GetRulesForStage("optimizeModules")) {
-						let {matchingModules} = this.GetModulesWhereRuleShouldBeApplied(rule, modules, compilation, compilationIndex);
+						let {matchingModules} = this.GetModulesWhereRuleShouldBeApplied(rule, Array.from(modules), compilation, compilationIndex);
 						for (let mod of matchingModules) {
 							SetModuleSource(mod, this.ApplyRuleAsSourceTransform(rule, GetModuleSource(mod), compilationIndex, GetModuleResourcePath(mod)));
 						}
@@ -174,7 +179,7 @@ export class WebpackStringReplacer {
 
 			// stage 3 (if apply-stage late)
 			if (this.Stages.includes("optimizeChunkAssets")) {
-				compilation.plugin('optimize-chunk-assets', (chunks, callback) => {
+				compilation.hooks.optimizeChunkAssets.tap(packageName, chunks=> {
 					//Log("Chunks files:", chunks);
 					for (let [ruleIndex, rule] of this.GetRulesForStage("optimizeChunkAssets").entries()) {
 						let ruleMeta = this.currentRun.GetRuleMeta(rule, compilationIndex);
@@ -192,9 +197,15 @@ export class WebpackStringReplacer {
 						}
 		
 						for (let [chunkIndex, chunk] of chunks.entries()) {
+							const allChunksInside = [
+								...chunk.getAllAsyncChunks(),
+								...chunk.getAllInitialChunks(),
+								...chunk.getAllReferencedChunks(),
+							];
 							const chunkInfo = {
 								index: chunkIndex,
-								definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
+								//definedChunkNames: [chunk.name].concat((chunk.entries || []).map(a=>a.name))
+								definedChunkNames: Array.from(new Set([chunk.name, ...allChunksInside.map(a=>a.name)])),
 							};
 							ruleMeta.compilationIsMatch = false;
 							if (!SomeFuncsMatch(chunkIncludeFuncs, chunkInfo)) continue; // if chunk not included by rule, doesn't match
@@ -244,13 +255,11 @@ export class WebpackStringReplacer {
 							}
 						}
 					}
-
-					callback();
 				});
 			}
 
 			// stage 4: detect when compilation is truly finished, then verify match counts, then reset for next run
-			compilation.hooks.afterOptimizeChunkAssets.tap(packageName, (chunks, callback) => {
+			compilation.hooks.afterOptimizeChunkAssets.tap(packageName, chunks=> {
 				this.currentRun.compilationsCompleted++;
 				// if we just finished applying the rules for the last chunk, the compilation-run is complete
 				let isLastCompilation = this.currentRun.compilationsCompleted == this.currentRun.compilations.length;
@@ -272,7 +281,9 @@ export class WebpackStringReplacer {
 			const chunkExcludeFuncs = ToArray(rule.chunkExclude).map(ChunkMatchToFunction);
 			const chunkInfo = {
 				index: compilationIndex,
-				definedChunkNames: [compilation["name"]].concat((compilation.entries || []).map(a=>a.name)),
+				//definedChunkNames: [compilation["name"]].concat((compilation.entries || []).map(a=>a.name)),
+				//definedChunkNames: [compilation["name"]].concat(Array.from(compilation.entries.keys())),
+				definedChunkNames: [compilation["name"]].concat(Array.from(compilation.chunks).map(a=>a.name)),
 			};
 			
 			ruleMeta.compilationIsMatch = SomeFuncsMatch(chunkIncludeFuncs, chunkInfo) && !SomeFuncsMatch(chunkExcludeFuncs, chunkInfo);

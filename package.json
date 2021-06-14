@@ -32,12 +32,12 @@
     "dist": "tsc"
   },
   "devDependencies": {
-    "@types/node": "^12.12.7",
-    "@types/webpack": "^4.41.0",
-    "typescript": "^3.7.3",
-    "webpack": "^4.41.2"
+    "@types/node": "^15.12.2",
+    "@types/webpack": "^5.28.0",
+    "typescript": "^4.3.2",
+    "webpack": "^5.38.1"
   },
   "dependencies": {
-    "webpack-sources": "^1.4.3"
+    "webpack-sources": "^2.3.0"
   }
 }
