@@ -3,10 +3,11 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.WebpackStringReplacer = exports.ReplacementPlusCompilationMeta = exports.RulePlusCompilationMeta = exports.ReplacementMeta = exports.RuleMeta = exports.CompilationRun = void 0;
 // @ts-check_disabled
 const path = require("path");
-const Utils_1 = require("./Utils");
-const Options_1 = require("./Options");
-const webpack_sources_1 = require("webpack-sources");
 const webpack_1 = require("webpack");
+const webpack_sources_1 = require("webpack-sources");
+const Options_1 = require("./Options");
+const Utils_1 = require("./Utils");
+const GetWebpack_NormalModule = (options) => { var _a, _b; return (_b = (_a = options.webpackModule) === null || _a === void 0 ? void 0 : _a.NormalModule) !== null && _b !== void 0 ? _b : webpack_1.NormalModule; };
 class CompilationRun {
     constructor() {
         this.compilations = [];
@@ -135,7 +136,8 @@ class WebpackStringReplacer {
             // stage 1 (if apply-stage early): insert our transformer-loader for each file for which a rule applies; the transformer will soon be called, applying the rules
             if (this.Stages.includes("loader")) {
                 //compilation.hooks.normalModuleLoader.tap(packageName, (loaderContext: webpack.loader.LoaderContext, mod)=> {
-                webpack_1.NormalModule.getCompilationHooks(compilation).loader.tap(packageName, (loaderContext, mod) => {
+                //NormalModule.getCompilationHooks(compilation).loader.tap(packageName, (loaderContext: LoaderContext<Options>, mod)=> {
+                GetWebpack_NormalModule(this.options).getCompilationHooks(compilation).loader.tap(packageName, (loaderContext, mod) => {
                     if (loaderContext._compilation != compilation)
                         throw new Error("LoaderContext and chunk out of sync.");
                     let rulesToApply = this.GetRulesForStage("loader").filter(rule => {
@@ -191,14 +193,6 @@ class WebpackStringReplacer {
                         const chunkExcludeFuncs = Utils_1.ToArray(rule.chunkExclude).map(Utils_1.ChunkMatchToFunction);
                         const outputFileIncludeFuncs = Utils_1.ToArray(rule.outputFileInclude).map(Utils_1.FileMatchToFunction);
                         const outputFileExcludeFuncs = Utils_1.ToArray(rule.outputFileExclude).map(Utils_1.FileMatchToFunction);
-                        function GetAllIndexes(str, searchStr) {
-                            let i = -1;
-                            const indices = [];
-                            while ((i = str.indexOf(searchStr, i + 1)) !== -1) {
-                                indices.push(i);
-                            }
-                            return indices;
-                        }
                         for (let [chunkIndex, chunk] of chunks.entries()) {
                             const allChunksInside = [
                                 ...chunk.getAllAsyncChunks(),
@@ -233,21 +227,26 @@ class WebpackStringReplacer {
                                 let newSource;
                                 for (let replacement of rule.replacements) {
                                     let replacementMeta = this.currentRun.GetReplacementMeta(replacement, compilationIndex);
-                                    if (!Utils_1.IsString(replacement.pattern))
-                                        throw new Error("Only string patterns are allowed for optimizeChunkAssets stage currently. (will fix later)");
-                                    let patternStr = replacement.pattern;
-                                    const matchIndexes = GetAllIndexes(originalSource.source(), patternStr);
-                                    if (!matchIndexes.length)
+                                    /*if (!IsString(replacement.pattern)) throw new Error("Only string patterns are allowed for optimizeChunkAssets stage currently. (will fix later)");
+                                    let patternStr = replacement.pattern as string;
+                                    const matchIndexes = GetAllIndexes(originalSource.source(), patternStr);*/
+                                    //const matchIndexes = GetAllIndexes(originalSource.source(), replacement.pattern);
+                                    const matches = Utils_1.Matches(originalSource.source(), replacement.pattern);
+                                    //console.log("Matches:", matches.length, "@replacement:", replacement.replacement.toString());
+                                    if (!matches.length)
                                         continue;
                                     if (!newSource) {
                                         newSource = new webpack_sources_1.ReplaceSource(originalSource);
                                     }
-                                    matchIndexes.forEach((startPos) => {
-                                        const endPos = startPos + patternStr.length - 1;
-                                        //Log("Replacing;", startPos, ";", endPos);
-                                        newSource.replace(startPos, endPos, replacement.replacement);
+                                    matches.forEach(match => {
+                                        const startPos = match.index;
+                                        //const endPos = startPos + patternStr.length - 1;
+                                        const endPos = startPos + match[0].length;
+                                        const newStr = typeof replacement.replacement == "string" ? replacement.replacement : replacement.replacement(match[0], ...match.slice(1));
+                                        //Log(`Replacing match. @range(${startPos}-${endPos}) @old(${match[0]}) @new(${newStr})`);
+                                        newSource.replace(startPos, endPos, newStr);
                                     });
-                                    replacementMeta.patternMatchCount += matchIndexes.length;
+                                    replacementMeta.patternMatchCount += matches.length;
                                 }
                                 if (newSource) {
                                     /*let newFileName = "new_" + file;

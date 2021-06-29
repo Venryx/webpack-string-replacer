@@ -19,3 +19,4 @@ export declare function IsMatchCountCorrect(actualMatchCount: any, targetMatchCo
 export declare function ShouldValidate(shouldValidate: ShouldValidateCondition, shouldValidateData: ShouldValidateData): boolean;
 export declare function Slice_NumberOrBool(str: string, length_orTrueForRest: number | boolean): string;
 export declare function GetModuleResourcePath(mod: webpack.Module, loaderContext?: webpack.LoaderContext<any>): any;
+export declare function Matches(self: String, strOrRegex: string | RegExp): RegExpMatchArray[];

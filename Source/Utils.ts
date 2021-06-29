@@ -112,3 +112,37 @@ export function SetModuleSource(mod: webpack.Module, newSource: string) {
 export function GetModuleResourcePath(mod: webpack.Module, loaderContext?: webpack.LoaderContext<any>) {
 	return mod["resource"] || mod["request"] || loaderContext?.resourcePath || loaderContext?.resource;
 }
+
+export function Matches(self: String, strOrRegex: string | RegExp): RegExpMatchArray[] {
+	let result = [] as RegExpMatchArray[];
+
+	if (typeof strOrRegex == "string") {
+		let str = strOrRegex;
+		let lastMatchIndex = -1;
+		while (true) {
+			let matchIndex = self.indexOf(str, lastMatchIndex + 1);
+			if (matchIndex == -1) break; // if another match was not found
+			const entry: RegExpMatchArray = [self.slice(matchIndex, matchIndex + str.length)];
+			// use defineProperties, so they're non-enumerable (and so don't show if the match is passed to console.log)
+			Object.defineProperties(entry, {
+				index: {value: matchIndex},
+				input: {value: self.toString()},
+			});
+			result.push(entry);
+			lastMatchIndex = matchIndex;
+		}
+	} else {
+		let regex = strOrRegex;
+		if (!regex.global) {
+			//throw new Error("Regex must have the 'g' flag added. (otherwise an infinite loop occurs)");
+			regex = new RegExp(regex.source, regex.flags + "g");
+		}
+		
+		let match;
+		while (match = regex.exec(self as string)) {
+			result.push(match);
+		}
+	}
+
+	return result;
+}

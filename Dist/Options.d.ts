@@ -11,6 +11,7 @@ export declare class Options {
     ruleBase?: Partial<Rule>;
     replacementBase?: Partial<Replacement>;
     rules: Rule[];
+    webpackModule?: typeof webpack;
 }
 export declare type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";
 export declare class Rule {

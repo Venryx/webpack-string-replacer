@@ -19,6 +19,9 @@ export class Options {
 	ruleBase?: Partial<Rule>;
 	replacementBase?: Partial<Replacement>;
 	rules = [] as Rule[];
+
+	// user can supply this if they have webpack-string-replacer symlinked, to avoid "instanceof" fail from multiple "webpack" modules
+	webpackModule?: typeof webpack;
 }
 
 export type ApplyStage = "loader" | "optimizeModules" | "optimizeChunkAssets";

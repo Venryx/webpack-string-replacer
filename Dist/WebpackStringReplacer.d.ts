@@ -1,5 +1,5 @@
-import { Options, ApplyStage, Rule, Replacement } from "./Options";
 import * as webpack from "webpack";
+import { ApplyStage, Options, Replacement, Rule } from "./Options";
 export declare type Compilation = webpack.Compilation;
 export declare type Module = webpack.Module;
 export declare class CompilationRun {

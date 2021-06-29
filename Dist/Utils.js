@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.GetModuleResourcePath = exports.Slice_NumberOrBool = exports.ShouldValidate = exports.IsMatchCountCorrect = exports.SomeFuncsMatch = exports.FileMatchToFunction = exports.ChunkMatchToFunction = exports.Distinct = exports.Log = exports.ToRegex = exports.EscapeForRegex = exports.ToArray = exports.IsFunction = exports.IsObject = exports.IsArray = exports.IsRegex = exports.IsString = exports.IsNumber = exports.IsBool = void 0;
+exports.Matches = exports.GetModuleResourcePath = exports.Slice_NumberOrBool = exports.ShouldValidate = exports.IsMatchCountCorrect = exports.SomeFuncsMatch = exports.FileMatchToFunction = exports.ChunkMatchToFunction = exports.Distinct = exports.Log = exports.ToRegex = exports.EscapeForRegex = exports.ToArray = exports.IsFunction = exports.IsObject = exports.IsArray = exports.IsRegex = exports.IsString = exports.IsNumber = exports.IsBool = void 0;
 function IsBool(any) { return typeof any === "boolean"; }
 exports.IsBool = IsBool;
 function IsNumber(any) { return typeof any === "number"; }
@@ -132,4 +132,37 @@ function GetModuleResourcePath(mod, loaderContext) {
     return mod["resource"] || mod["request"] || (loaderContext === null || loaderContext === void 0 ? void 0 : loaderContext.resourcePath) || (loaderContext === null || loaderContext === void 0 ? void 0 : loaderContext.resource);
 }
 exports.GetModuleResourcePath = GetModuleResourcePath;
+function Matches(self, strOrRegex) {
+    let result = [];
+    if (typeof strOrRegex == "string") {
+        let str = strOrRegex;
+        let lastMatchIndex = -1;
+        while (true) {
+            let matchIndex = self.indexOf(str, lastMatchIndex + 1);
+            if (matchIndex == -1)
+                break; // if another match was not found
+            const entry = [self.slice(matchIndex, matchIndex + str.length)];
+            // use defineProperties, so they're non-enumerable (and so don't show if the match is passed to console.log)
+            Object.defineProperties(entry, {
+                index: { value: matchIndex },
+                input: { value: self.toString() },
+            });
+            result.push(entry);
+            lastMatchIndex = matchIndex;
+        }
+    }
+    else {
+        let regex = strOrRegex;
+        if (!regex.global) {
+            //throw new Error("Regex must have the 'g' flag added. (otherwise an infinite loop occurs)");
+            regex = new RegExp(regex.source, regex.flags + "g");
+        }
+        let match;
+        while (match = regex.exec(self)) {
+            result.push(match);
+        }
+    }
+    return result;
+}
+exports.Matches = Matches;
 //# sourceMappingURL=Utils.js.map
