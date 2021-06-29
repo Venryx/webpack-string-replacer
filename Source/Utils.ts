@@ -24,7 +24,7 @@ export function ToRegex(str) {
 
 // proxy for console.log, which adds a new-line (otherwise, the log just gets appended to the other webpack log lines, making it hard to see)
 export function Log(...args) {
-	return console.log("\n", ...args);
+	return console.log("\n[wsr]", ...args);
 }
 
 export function Distinct(items: any[]) {
