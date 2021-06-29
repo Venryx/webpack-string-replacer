@@ -241,7 +241,7 @@ export class WebpackStringReplacer {
 									matches.forEach(match=>{
 										const startPos = match.index;
 										//const endPos = startPos + patternStr.length - 1;
-										const endPos = startPos + match[0].length;
+										const endPos = startPos + (match[0].length - 1);
 										const newStr = typeof replacement.replacement == "string" ? replacement.replacement : replacement.replacement(match[0], ...match.slice(1));
 										//Log(`Replacing match. @range(${startPos}-${endPos}) @old(${match[0]}) @new(${newStr})`);
 										newSource.replace(startPos, endPos, newStr);
